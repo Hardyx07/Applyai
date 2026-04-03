@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = 6333
     QDRANT_COLLECTION: str = "applyai_chunks"
-    GEMINI_EMBEDDING_MODEL: str = "models/gemini-embedding-001"
-    GEMINI_GENERATION_MODEL: str = "gemini-1.5-flash"
-    COHERE_RERANK_MODEL: str = "rerank-v3.5"
+    GEMINI_EMBEDDING_MODEL: str = "models/gemini-embedding-2-preview"
+    GEMINI_GENERATION_MODEL: str = "gemini-3.1-flash-lite-preview"
+    COHERE_RERANK_MODEL: str = "rerank-v4.0-pro"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379"

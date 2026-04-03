@@ -147,6 +147,10 @@ async def _embed_query(*, query: str, api_key: str) -> list[float]:
 
 
 def _embed_query_sync(query: str, api_key: str) -> list[float]:
+    print(
+        f"[model-debug] query-embedding model={settings.GEMINI_EMBEDDING_MODEL}",
+        flush=True,
+    )
     genai.configure(api_key=api_key)
     response = genai.embed_content(
         model=settings.GEMINI_EMBEDDING_MODEL,

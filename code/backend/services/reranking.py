@@ -24,6 +24,7 @@ async def rerank_chunks(
         "documents": [chunk.text for chunk in chunks],
         "top_n": min(max(top_n, 1), len(chunks)),
     }
+    print(f"[model-debug] rerank model={settings.COHERE_RERANK_MODEL}", flush=True)
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:

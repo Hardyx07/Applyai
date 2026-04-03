@@ -49,7 +49,10 @@ async def ingest_profile(
             model=settings.GEMINI_EMBEDDING_MODEL,
         )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail="Failed to create embeddings.") from exc
+        detail = "Failed to create embeddings."
+        if settings.APP_ENV == "development":
+            detail = f"{detail} {type(exc).__name__}: {exc}"
+        raise HTTPException(status_code=502, detail=detail) from exc
 
     if len(embeddings) != len(chunk_result.chunks):
         raise HTTPException(status_code=502, detail="Embedding count mismatch.")
