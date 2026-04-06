@@ -73,12 +73,12 @@ export default function IngestPage() {
         <p>Upload your resume or career documents for AI-powered analysis and personalized insights.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '640px', marginBottom: 'var(--space-8)' }}>
+      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '640px' }}>
         <div
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
           className="ingest-trigger"
-          style={{ border: '2px dashed var(--color-border)', borderRadius: 'var(--radius-lg)' }}
+          style={{ border: '2px dashed var(--color-border)', borderRadius: 'var(--radius-lg)', cursor: 'pointer', transition: 'border-color var(--transition-base)' }}
         >
           <input
             id="file"
@@ -92,18 +92,20 @@ export default function IngestPage() {
             {file ? (
               <div>
                 <div className="ingest-trigger__icon" style={{ background: 'var(--color-success-light)', color: 'var(--color-success)' }}>✓</div>
-                <h3 className="ingest-trigger__title" style={{ color: 'var(--color-success)' }}>{file.name}</h3>
-                <p className="ingest-trigger__desc">
-                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                <h3 className="ingest-trigger__title">{file.name}</h3>
+                <p className="ingest-trigger__desc" style={{ marginBottom: 0 }}>
+                  {(file.size / 1024 / 1024).toFixed(2)} MB<br/>
+                  Click to change file
                 </p>
-                <p className="form-hint">Click to change file</p>
               </div>
             ) : (
               <div>
                 <div className="ingest-trigger__icon">📄</div>
                 <h3 className="ingest-trigger__title">Click to upload or drag and drop</h3>
-                <p className="ingest-trigger__desc">PDF, TXT, DOC, or DOCX files</p>
-                <p className="form-hint">Maximum 10 MB</p>
+                <p className="ingest-trigger__desc" style={{ marginBottom: 0 }}>
+                  PDF, TXT, DOC, or DOCX files<br/>
+                  Maximum 10 MB
+                </p>
               </div>
             )}
           </label>
@@ -111,19 +113,17 @@ export default function IngestPage() {
 
         {uploadProgress > 0 && uploadProgress < 100 && (
           <div className="ingest-progress">
+            <div className="ingest-progress__label">Uploading... {uploadProgress}%</div>
             <div className="ingest-progress__bar">
               <div
                 className="ingest-progress__fill"
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
-            <div className="ingest-progress__label">
-              Uploading... {uploadProgress}%
-            </div>
           </div>
         )}
 
-        <div style={{ marginTop: 'var(--space-6)', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ marginTop: 'var(--space-8)' }}>
           <button
             type="submit"
             disabled={isLoading || !file}
@@ -134,15 +134,15 @@ export default function IngestPage() {
         </div>
       </form>
 
-      <div className="banner banner--success">
-        <div style={{ width: '100%' }}>
-           <h3 style={{ fontSize: 'var(--text-sm)', marginBottom: 'var(--space-2)' }}>✨ What happens next?</h3>
-           <ul style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: 'var(--text-xs)' }}>
-             <li>• Your resume is analyzed and broken into searchable chunks</li>
-             <li>• Content is embedded using advanced AI models</li>
-             <li>• Ready for real-time Q&A about your career</li>
-             <li>• All processing is secure and private</li>
-           </ul>
+      <div className="banner banner--success" style={{ marginTop: 'var(--space-8)', maxWidth: '640px' }}>
+        <div>
+          <h3 style={{ marginBottom: 'var(--space-2)' }}>✨ What happens next?</h3>
+          <ul style={{ fontSize: 'var(--text-xs)', opacity: 0.8 }}>
+            <li>• Your resume is analyzed and broken into searchable chunks</li>
+            <li>• Content is embedded using advanced AI models</li>
+            <li>• Ready for real-time Q&A about your career</li>
+            <li>• All processing is secure and private</li>
+          </ul>
         </div>
       </div>
 

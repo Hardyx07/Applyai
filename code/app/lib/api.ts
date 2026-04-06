@@ -132,7 +132,7 @@ export async function apiGet<T>(
 
 export async function apiPost<T>(
   endpoint: string,
-  body?: Record<string, unknown>,
+  body?: unknown,
   options: RequestOptions = {}
 ): Promise<T> {
   const response = await apiCall(endpoint, {
@@ -151,7 +151,7 @@ export async function apiPost<T>(
 
 export async function apiPut<T>(
   endpoint: string,
-  body?: Record<string, unknown>,
+  body?: unknown,
   options: RequestOptions = {}
 ): Promise<T> {
   const response = await apiCall(endpoint, {
@@ -187,7 +187,7 @@ export async function apiDelete<T>(
 
 export async function apiStream(
   endpoint: string,
-  body?: Record<string, unknown>,
+  body?: unknown,
   options: RequestOptions = {}
 ): Promise<ReadableStream<Uint8Array>> {
   const response = await apiCall(endpoint, {

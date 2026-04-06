@@ -140,7 +140,6 @@ export default function Home() {
                     Drop your resume in seconds. Our system automatically parses, chunks, and semantically embeds your background so its ready for AI interpretation. No manual data entry required.
                   </p>
                 </div>
-               
               </div>
 
               {/* Step 2 */}
@@ -153,7 +152,6 @@ export default function Home() {
                     Bring your own API keys for Gemini and Cohere. Your data stays entirely under your control. We never intercept, store, or train on your personal keys.
                   </p>
                 </div>
-               
               </div>
 
               {/* Step 3 */}
@@ -166,7 +164,6 @@ export default function Home() {
                     Ask natural questions about your career trajectory and get instant, personalized guidance informed directly by your profile and experience history.
                   </p>
                 </div>
-
               </div>
             </div>
           </div>
@@ -244,7 +241,7 @@ export default function Home() {
         <section className="epic-cta container">
           {/* CTA Floating Doodle */}
           <div className="floating-doodle float-sway delay-3" style={{ top: '10%', right: '15%' }}>
-            {/* <Image src="/doodles/envelope.png" alt="" width={120} height={120} /> */}
+            <Image src="/doodles/envelope.png" alt="" width={120} height={120} />
           </div>
           
           <h2 className="epic-cta__title" style={{ color: '#FFFFFF' }}>Start your journey</h2>

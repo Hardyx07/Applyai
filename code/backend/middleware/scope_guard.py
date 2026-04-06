@@ -33,6 +33,10 @@ PUBLIC_PATHS: set[str] = {
 
 class ScopeGuardMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # ── 0. Allow browser CORS preflight ──────────────────────────────
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         # ── 1. Skip public paths ──────────────────────────────────────────
         if request.url.path in PUBLIC_PATHS:
             return await call_next(request)

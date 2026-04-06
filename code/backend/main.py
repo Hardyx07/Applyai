@@ -33,6 +33,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ── Scope Guard ───────────────────────────────────────────────────────────────
+app.add_middleware(ScopeGuardMiddleware)
+
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
@@ -41,9 +44,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ── Scope Guard (must come AFTER CORSMiddleware) ──────────────────────────────
-app.add_middleware(ScopeGuardMiddleware)
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router)

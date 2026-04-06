@@ -1,3 +1,6 @@
+import json
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
@@ -38,6 +41,26 @@ class Settings(BaseSettings):
 
     # CORS
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def _normalize_allowed_origins(cls, value):
+        if value is None:
+            origins: list[str] = []
+        elif isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+                origins = parsed if isinstance(parsed, list) else [str(parsed)]
+            except json.JSONDecodeError:
+                origins = [value]
+        else:
+            origins = list(value)
+
+        for origin in ("http://localhost:3000", "http://127.0.0.1:3000"):
+            if origin not in origins:
+                origins.append(origin)
+
+        return origins
 
 
 @lru_cache

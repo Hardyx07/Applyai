@@ -21,7 +21,7 @@ export default function KeysPage() {
 
     setIsLoading(true);
     try {
-      const response = await apiPost('/validate-keys', {
+      const response = await apiPost('/settings/validate-keys', {
         gemini_api_key: geminiKey,
         cohere_api_key: cohereKey,
       });
@@ -48,73 +48,68 @@ export default function KeysPage() {
     <div>
       <div className="page-header">
         <h1>API Keys</h1>
-        <p>
-          Manage your API keys for Gemini and Cohere. Your keys are stored securely and never exposed.
-        </p>
+        <p>Manage your API keys for Gemini and Cohere. Your keys are stored securely and never exposed.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '640px', marginBottom: 'var(--space-8)' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          <div className="form-group">
-            <label htmlFor="gemini_key" className="form-label">
-              Gemini API Key
-            </label>
-            <input
-              id="gemini_key"
-              type="password"
-              value={geminiKey}
-              onChange={(e) => setGeminiKey(e.target.value)}
-              className="form-input"
-              placeholder="Enter your Gemini API key"
-            />
-            <p className="form-hint">
-              Get your key from{' '}
-              <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-brand)' }}>
-                Google AI Studio
-              </a>
-            </p>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="cohere_key" className="form-label">
-              Cohere API Key
-            </label>
-            <input
-              id="cohere_key"
-              type="password"
-              value={cohereKey}
-              onChange={(e) => setCohereKey(e.target.value)}
-              className="form-input"
-              placeholder="Enter your Cohere API key"
-            />
-            <p className="form-hint">
-              Get your key from{' '}
-              <a href="https://dashboard.cohere.com/api-keys" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-brand)' }}>
-                Cohere Dashboard
-              </a>
-            </p>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="btn btn--primary"
-            style={{ width: 'fit-content' }}
-          >
-            {isLoading ? 'Validating...' : 'Validate & Save Keys'}
-          </button>
+      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '640px' }}>
+        <div className="form-group" style={{ marginBottom: 'var(--space-6)' }}>
+          <label htmlFor="gemini_key" className="form-label">
+            Gemini API Key
+          </label>
+          <input
+            id="gemini_key"
+            type="password"
+            value={geminiKey}
+            onChange={(e) => setGeminiKey(e.target.value)}
+            className="form-input"
+            placeholder="Enter your Gemini API key"
+          />
+          <p className="form-hint">
+            Get your key from{' '}
+            <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-brand">
+              Google AI Studio
+            </a>
+          </p>
         </div>
+
+        <div className="form-group" style={{ marginBottom: 'var(--space-6)' }}>
+          <label htmlFor="cohere_key" className="form-label">
+            Cohere API Key
+          </label>
+          <input
+            id="cohere_key"
+            type="password"
+            value={cohereKey}
+            onChange={(e) => setCohereKey(e.target.value)}
+            className="form-input"
+            placeholder="Enter your Cohere API key"
+          />
+          <p className="form-hint">
+            Get your key from{' '}
+            <a href="https://dashboard.cohere.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-brand">
+              Cohere Dashboard
+            </a>
+          </p>
+        </div>
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="btn btn--primary btn--full"
+        >
+          {isLoading ? 'Validating...' : 'Validate & Save Keys'}
+        </button>
       </form>
 
-      <div className="banner banner--info">
-        <div style={{ width: '100%' }}>
-           <h3 style={{ fontSize: 'var(--text-sm)', marginBottom: 'var(--space-2)' }}>🔒 Security</h3>
-           <ul style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: 'var(--text-xs)' }}>
-             <li>• Your API keys are encrypted and stored securely</li>
-             <li>• Keys are never shared or logged</li>
-             <li>• You can update your keys at any time</li>
-             <li>• Bring Your Own Key (BYOK) - full control over your data</li>
-           </ul>
+      <div className="banner banner--info" style={{ marginTop: 'var(--space-8)', maxWidth: '640px' }}>
+        <div>
+          <h3 style={{ marginBottom: 'var(--space-2)' }}>🔒 Security</h3>
+          <ul style={{ fontSize: 'var(--text-xs)', opacity: 0.8 }}>
+            <li>• Your API keys are encrypted and stored securely</li>
+            <li>• Keys are never shared or logged</li>
+            <li>• You can update your keys at any time</li>
+            <li>• Bring Your Own Key (BYOK) - full control over your data</li>
+          </ul>
         </div>
       </div>
 

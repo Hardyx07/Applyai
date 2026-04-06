@@ -90,6 +90,9 @@ app/
 ## 🔐 Auth Flow
 
 1. User registers/logs in → backend returns `{access_token, refresh_token}`
+   - Login payload: `{ email, password }`
+   - Register payload: `{ full_name, email, password }`
+   - Password minimum: 8 characters (aligned to backend schema)
 2. Tokens stored in localStorage
 3. API client automatically:
    - Injects `Authorization: Bearer {token}` header
@@ -116,7 +119,7 @@ All routes expect Bearer token in `Authorization` header. BYOK headers auto-inje
 | Refresh | `/auth/refresh` | POST | - |
 | Profile (GET) | `/profile` | GET | - |
 | Profile (POST) | `/profile` | POST | - |
-| Validate Keys | `/validate-keys` | POST | - |
+| Validate Keys | `/settings/validate-keys` | POST | - |
 | Ingest Resume | `/ingest` | POST | X-Gemini-API-Key, X-Cohere-API-Key |
 | Generate Stream | `/generate/stream` | POST | X-Gemini-API-Key, X-Cohere-API-Key |
 

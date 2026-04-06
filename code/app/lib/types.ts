@@ -5,6 +5,17 @@ export interface TokenResponse {
   token_type: string;
 }
 
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  full_name: string;
+  email: string;
+  password: string;
+}
+
 export interface User {
   user_id: string;
   email: string;

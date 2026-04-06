@@ -127,28 +127,33 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Get Started with ApplyAI</h1>
+    <div className="onboard">
+      <div className="page-header">
+        <h1>Get Started with ApplyAI</h1>
+      </div>
 
       {/* Progress Bar */}
-      <div className="mb-8 flex gap-2">
+      <div className="onboard__step-label">
+        <span className={step === 1 ? 'current' : ''}>Profile Info</span>
+        <span className={step === 2 ? 'current' : ''}>API Keys</span>
+        <span className={step === 3 ? 'current' : ''}>Upload Resume</span>
+      </div>
+      <div className="onboard__progress">
         {[1, 2, 3].map((s) => (
           <div
             key={s}
-            className={`flex-1 h-2 rounded ${
-              s <= step ? 'bg-blue-600' : 'bg-gray-200'
-            }`}
+            className={`onboard__bar ${s <= step ? 'active' : ''}`}
           />
         ))}
       </div>
 
       {/* Step 1: Profile */}
       {step === 1 && (
-        <form onSubmit={handleProfileSubmit} className="bg-white rounded-lg shadow p-8 space-y-6">
-          <h2 className="text-2xl font-semibold text-gray-900">Step 1: Your Profile</h2>
+        <form onSubmit={handleProfileSubmit} className="onboard__card">
+          <h2>Step 1: Your Profile</h2>
 
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
+            <label htmlFor="name" className="form-label">
               Full Name *
             </label>
             <input
@@ -158,13 +163,13 @@ export default function OnboardingPage() {
               value={profileData.name}
               onChange={handleProfileChange}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="form-input"
               placeholder="John Doe"
             />
           </div>
 
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
+            <label htmlFor="phone" className="form-label">
               Phone
             </label>
             <input
@@ -173,13 +178,13 @@ export default function OnboardingPage() {
               type="tel"
               value={profileData.phone}
               onChange={handleProfileChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="form-input"
               placeholder="+1 (555) 123-4567"
             />
           </div>
 
-          <div>
-            <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
+            <label htmlFor="location" className="form-label">
               Location
             </label>
             <input
@@ -188,13 +193,13 @@ export default function OnboardingPage() {
               type="text"
               value={profileData.location}
               onChange={handleProfileChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="form-input"
               placeholder="San Francisco, CA"
             />
           </div>
 
-          <div>
-            <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
+            <label htmlFor="bio" className="form-label">
               Bio
             </label>
             <textarea
@@ -203,30 +208,31 @@ export default function OnboardingPage() {
               value={profileData.bio}
               onChange={handleProfileChange}
               rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="form-textarea"
               placeholder="Tell us about yourself..."
             />
           </div>
 
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-          >
-            Continue
-          </button>
+          <div className="onboard__actions">
+            <button
+              type="submit"
+              className="btn btn--primary"
+            >
+              Continue
+            </button>
+          </div>
         </form>
       )}
 
-      {/* Step 2: API Keys */}
       {step === 2 && (
-        <form onSubmit={handleApiKeysSubmit} className="bg-white rounded-lg shadow p-8 space-y-6">
-          <h2 className="text-2xl font-semibold text-gray-900">Step 2: API Keys</h2>
-          <p className="text-gray-600">
+        <form onSubmit={handleApiKeysSubmit} className="onboard__card">
+          <h2>Step 2: API Keys</h2>
+          <p>
             Add your API keys to enable AI-powered insights. Your keys are stored securely and never shared.
           </p>
 
-          <div>
-            <label htmlFor="gemini_api_key" className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
+            <label htmlFor="gemini_api_key" className="form-label">
               Gemini API Key *
             </label>
             <input
@@ -236,13 +242,13 @@ export default function OnboardingPage() {
               value={apiKeys.gemini_api_key}
               onChange={handleApiKeyChange}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="form-input"
               placeholder="Enter your Gemini API key"
             />
           </div>
 
-          <div>
-            <label htmlFor="cohere_api_key" className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
+            <label htmlFor="cohere_api_key" className="form-label">
               Cohere API Key *
             </label>
             <input
@@ -252,23 +258,23 @@ export default function OnboardingPage() {
               value={apiKeys.cohere_api_key}
               onChange={handleApiKeyChange}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="form-input"
               placeholder="Enter your Cohere API key"
             />
           </div>
 
-          <div className="flex gap-4">
+          <div className="onboard__actions">
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              className="btn btn--secondary"
             >
               Back
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+              className="btn btn--primary"
             >
               {isLoading ? 'Validating...' : 'Continue'}
             </button>
@@ -278,49 +284,50 @@ export default function OnboardingPage() {
 
       {/* Step 3: Resume */}
       {step === 3 && (
-        <form onSubmit={handleResumeSubmit} className="bg-white rounded-lg shadow p-8 space-y-6">
-          <h2 className="text-2xl font-semibold text-gray-900">Step 3: Upload Resume</h2>
-          <p className="text-gray-600">
+        <form onSubmit={handleResumeSubmit} className="onboard__card">
+          <h2>Step 3: Upload Resume</h2>
+          <p>
             Upload your resume to enable personalized AI insights about your career.
           </p>
 
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+          <div className="ingest-trigger" style={{ border: '2px dashed var(--color-border)', borderRadius: 'var(--radius-lg)' }}>
             <input
               id="resume"
               name="resume"
               type="file"
               accept=".pdf,.txt,.doc,.docx"
               onChange={handleResumeChange}
-              className="hidden"
+              className="sr-only"
             />
-            <label htmlFor="resume" className="cursor-pointer">
+            <label htmlFor="resume" style={{ cursor: 'pointer', display: 'block' }}>
               {resumeFile ? (
                 <div>
-                  <p className="text-lg font-medium text-green-600">✓ {resumeFile.name}</p>
-                  <p className="text-sm text-gray-600 mt-1">Click to change file</p>
+                  <div className="ingest-trigger__icon" style={{ background: 'var(--color-success-light)', color: 'var(--color-success)', margin: '0 auto 12px' }}>✓</div>
+                  <h3 className="ingest-trigger__title">{resumeFile.name}</h3>
+                  <p className="ingest-trigger__desc" style={{ marginBottom: 0 }}>Click to change file</p>
                 </div>
               ) : (
                 <div>
-                  <p className="text-lg font-medium text-gray-900">Click to upload resume</p>
-                  <p className="text-sm text-gray-600">or drag and drop</p>
-                  <p className="text-xs text-gray-500 mt-2">PDF, TXT, DOC, or DOCX</p>
+                  <div className="ingest-trigger__icon" style={{ margin: '0 auto 12px' }}>📄</div>
+                  <h3 className="ingest-trigger__title">Click to upload resume</h3>
+                  <p className="ingest-trigger__desc" style={{ marginBottom: 0 }}>or drag and drop<br/><span style={{ fontSize: '12px' }}>PDF, TXT, DOC, or DOCX</span></p>
                 </div>
               )}
             </label>
           </div>
 
-          <div className="flex gap-4">
+          <div className="onboard__actions">
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              className="btn btn--secondary"
             >
               Back
             </button>
             <button
               type="submit"
               disabled={isLoading || !resumeFile}
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+              className="btn btn--primary"
             >
               {isLoading ? 'Uploading...' : 'Complete Setup'}
             </button>

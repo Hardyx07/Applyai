@@ -66,24 +66,23 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="loading-screen" style={{ minHeight: '300px' }}>
+      <div className="loading-screen">
         <div className="spinner spinner--lg"></div>
       </div>
     );
   }
 
   if (!profile) {
-    return <div className="text-center">Failed to load profile</div>;
+    return <div className="text-center text-gray-600">Failed to load profile</div>;
   }
 
   return (
     <div>
       <div className="page-header">
         <h1>Your Profile</h1>
-        <p>Update your personal information and bio.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="card profile-form">
+      <form onSubmit={handleSubmit} className="card">
         <div className="form-row">
           <div className="form-group">
             <label htmlFor="name" className="form-label">
@@ -142,7 +141,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="form-group">
+        <div className="form-group" style={{ marginTop: 'var(--space-6)' }}>
           <label htmlFor="bio" className="form-label">
             Bio
           </label>
@@ -156,14 +155,14 @@ export default function ProfilePage() {
           />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-           <button
-             type="submit"
-             disabled={isSaving}
-             className="btn btn--primary"
-           >
-             {isSaving ? 'Saving...' : 'Save Profile'}
-           </button>
+        <div style={{ marginTop: 'var(--space-6)' }}>
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="btn btn--primary"
+          >
+            {isSaving ? 'Saving...' : 'Save Profile'}
+          </button>
         </div>
       </form>
 

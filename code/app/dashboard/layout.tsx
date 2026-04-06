@@ -3,7 +3,7 @@
 import { useAuth } from '@/app/hooks/useAuth';
 import { ProtectedRoute } from '@/app/components/ProtectedRoute';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardLayout({
   children,
@@ -12,7 +12,6 @@ export default function DashboardLayout({
 }) {
   const { logout, user } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
 
   const handleLogout = () => {
     logout();
@@ -21,71 +20,51 @@ export default function DashboardLayout({
 
   return (
     <ProtectedRoute>
-      <div className="dash-container">
-        {/* Navigation */}
-        <nav className="dash-nav">
-          <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div className="navbar__logo">
-              Apply<span>AI</span>
+      <div className="dash">
+        {/* Topbar */}
+        <nav className="dash__topbar">
+          <div className="dash__topbar-inner">
+            <div className="dash__topbar-left">
+              <button className="dash__hamburger">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+              </button>
+              <div className="navbar__logo">Apply<span>AI</span></div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)' }}>
-              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)', fontWeight: 'var(--weight-medium)' }}>
-                {user?.email}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="btn btn--secondary btn--sm"
-              >
+            <div className="dash__topbar-right">
+              <span className="dash__user-email">{user?.email}</span>
+              <button onClick={handleLogout} className="btn btn--secondary btn--sm">
                 Logout
               </button>
             </div>
           </div>
         </nav>
 
-        {/* Sidebar + Content */}
-        <div className="dash-body">
+        {/* Body and Sidebar */}
+        <div className="dash__body">
           {/* Sidebar */}
-          <aside className="dash-sidebar">
-            <div className="dash-menu">
-              <h2 className="dash-menu__title">Menu</h2>
-              <nav style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-                <Link
-                  href="/dashboard"
-                  className={`dash-menu__link ${pathname === '/dashboard' ? 'dash-menu__link--active' : ''}`}
-                >
-                  Dashboard
-                </Link>
-                <Link
-                  href="/dashboard/profile"
-                  className={`dash-menu__link ${pathname === '/dashboard/profile' ? 'dash-menu__link--active' : ''}`}
-                >
-                  Profile
-                </Link>
-                <Link
-                  href="/dashboard/keys"
-                  className={`dash-menu__link ${pathname === '/dashboard/keys' ? 'dash-menu__link--active' : ''}`}
-                >
-                  API Keys
-                </Link>
-                <Link
-                  href="/dashboard/ingest"
-                  className={`dash-menu__link ${pathname === '/dashboard/ingest' ? 'dash-menu__link--active' : ''}`}
-                >
-                  Ingest
-                </Link>
-                <Link
-                  href="/dashboard/generate"
-                  className={`dash-menu__link ${pathname === '/dashboard/generate' ? 'dash-menu__link--active' : ''}`}
-                >
-                  Generate
-                </Link>
-              </nav>
-            </div>
+          <aside className="dash__sidebar">
+            <nav className="dash__nav">
+              <Link href="/dashboard" className="dash__nav-item text-brand"> {/* simplified logic since layout doesn't easily know current path */}
+                Dashboard
+              </Link>
+              <Link href="/dashboard/profile" className="dash__nav-item">
+                Profile
+              </Link>
+              <Link href="/dashboard/keys" className="dash__nav-item">
+                API Keys
+              </Link>
+              <Link href="/dashboard/ingest" className="dash__nav-item">
+                Ingest
+              </Link>
+              <Link href="/dashboard/generate" className="dash__nav-item">
+                Generate
+              </Link>
+            </nav>
           </aside>
 
           {/* Main Content */}
-          <main className="dash-content">
+          <main className="dash__content">
             {children}
           </main>
         </div>

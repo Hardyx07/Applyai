@@ -91,8 +91,8 @@ export default function GeneratePage() {
     <div className="chat">
       {/* Header */}
       <div className="chat__header">
-        <h1 className="chat__header-title">Career Advisor</h1>
-        <p className="chat__header-subtitle">Ask questions about your career path and get AI-powered guidance</p>
+        <h1>Career Advisor</h1>
+        <p>Ask questions about your career path and get AI-powered guidance</p>
       </div>
 
       {/* Messages */}
@@ -100,17 +100,14 @@ export default function GeneratePage() {
         {messages.length === 0 ? (
           <div className="chat__empty">
             <div>
-              <p style={{ fontSize: '2rem', marginBottom: 'var(--space-4)' }}>💡</p>
-              <p style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--weight-medium)', color: 'var(--color-text)' }}>
-                 Ask me anything about your career!
-              </p>
-              <p style={{ color: 'var(--color-text-secondary)', marginTop: 'var(--space-2)' }}>Examples:</p>
-              <ul style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', marginTop: 'var(--space-2)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <li>• What roles should I target next?</li>
-                <li>• How can I improve my resume?</li>
-                <li>• What skills should I develop?</li>
-                <li>• What salary range is appropriate?</li>
-              </ul>
+              <div className="chat__empty-icon">💡</div>
+              <h3>Ask me anything about your career!</h3>
+              <div className="chat__suggestions">
+                <button className="chat__suggestion" onClick={() => setQuery("What roles should I target next?")}>What roles should I target next?</button>
+                <button className="chat__suggestion" onClick={() => setQuery("How can I improve my resume?")}>How can I improve my resume?</button>
+                <button className="chat__suggestion" onClick={() => setQuery("What skills should I develop?")}>What skills should I develop?</button>
+                <button className="chat__suggestion" onClick={() => setQuery("What salary range is appropriate?")}>What salary range is appropriate?</button>
+              </div>
             </div>
           </div>
         ) : (
@@ -118,28 +115,16 @@ export default function GeneratePage() {
             {messages.map((msg, idx) => (
               <div
                 key={idx}
-                style={{
-                   display: 'flex',
-                   justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                   width: '100%'
-                }}
+                className={`chat__bubble ${msg.role === 'user' ? 'chat__bubble--user' : 'chat__bubble--assistant'}`}
               >
-                <div
-                  className={`chat__bubble ${
-                    msg.role === 'user' ? 'chat__bubble--user' : 'chat__bubble--ai'
-                  }`}
-                >
-                  <p style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</p>
-                </div>
+                {msg.content}
               </div>
             ))}
             {isLoading && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
-              <div style={{ display: 'flex', justifyContent: 'flex-start', width: '100%' }}>
-                <div className="chat__bubble chat__bubble--ai">
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center', height: '24px' }}>
-                     <div className="spinner" style={{ width: '16px', height: '16px', borderTopColor: 'var(--color-text)' }}></div>
-                  </div>
-                </div>
+              <div className="chat__typing">
+                <div className="chat__typing-dot"></div>
+                <div className="chat__typing-dot"></div>
+                <div className="chat__typing-dot"></div>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -148,21 +133,21 @@ export default function GeneratePage() {
       </div>
 
       {/* Input */}
-      <div className="chat__input-area">
-        <form onSubmit={handleSubmit} className="chat__input-wrapper">
+      <div className="chat__input">
+        <form onSubmit={handleSubmit} className="chat__input-form">
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             disabled={isLoading}
             placeholder="Ask me a question..."
-            className="chat__input"
+            className="form-input"
+            autoFocus
           />
           <button
             type="submit"
             disabled={isLoading || !query.trim()}
             className="btn btn--primary"
-            style={{ borderRadius: 'var(--radius-xl)' }}
           >
             Send
           </button>

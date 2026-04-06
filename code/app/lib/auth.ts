@@ -1,15 +1,22 @@
 // JWT token storage and utility functions
-import { TokenResponse, User } from './types';
+import { TokenResponse } from './types';
 
 const TOKEN_KEY = 'access_token';
 const REFRESH_KEY = 'refresh_token';
+
+function setAccessTokenCookie(token: string): void {
+  document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=86400; SameSite=Lax`;
+}
+
+function clearAccessTokenCookie(): void {
+  document.cookie = `${TOKEN_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+}
 
 export function setTokens(tokens: TokenResponse): void {
   if (typeof window !== 'undefined') {
     localStorage.setItem(TOKEN_KEY, tokens.access_token);
     localStorage.setItem(REFRESH_KEY, tokens.refresh_token);
-    // Also set a simple cookie for edge middleware presence check (HTTP only cannot be set from client)
-    document.cookie = `${TOKEN_KEY}=${tokens.access_token}; path=/; max-age=86400; SameSite=Lax`;
+    setAccessTokenCookie(tokens.access_token);
   }
 }
 
@@ -31,7 +38,18 @@ export function clearTokens(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_KEY);
-    document.cookie = `${TOKEN_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    clearAccessTokenCookie();
+  }
+}
+
+export function syncAuthCookieFromStorage(): void {
+  if (typeof window === 'undefined') return;
+
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) {
+    setAccessTokenCookie(token);
+  } else {
+    clearAccessTokenCookie();
   }
 }
 
@@ -46,7 +64,7 @@ export function parseJWT(token: string): Record<string, unknown> | null {
         .join('')
     );
     return JSON.parse(jsonPayload);
-  } catch (e) {
+  } catch {
     return null;
   }
 }
