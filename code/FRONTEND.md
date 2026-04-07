@@ -7,11 +7,11 @@ Full-stack frontend for ApplyAI with complete user journey from authentication t
 ### Core Features
 1. **Authentication** - JWT-based login/register with automatic token refresh
 2. **Dashboard** - Main hub with navigation and user stats
-3. **Onboarding** - 3-step guided setup (profile → API keys → resume upload)
+3. **Onboarding** - 3-step guided setup (profile → API keys → resume text)
 4. **Profile Management** - Edit user information
 5. **API Keys Management** - Secure storage and validation of Gemini/Cohere keys
-6. **Resume Ingest** - Upload and process career documents
-7. **Generate Answers** - Real-time streaming Q&A about career using uploaded resume
+6. **Resume Ingest** - Paste and process career profile text
+7. **Generate Answers** - Real-time streaming Q&A about career using ingested profile data
 
 ### Architecture
 - **Framework**: Next.js 16 (App Router) with React 19
@@ -74,7 +74,7 @@ app/
 │   ├── onboarding/        # 3-step setup flow
 │   ├── profile/           # User profile editor
 │   ├── keys/              # API key management
-│   ├── ingest/            # Resume upload
+│   ├── ingest/            # Resume text ingest
 │   └── generate/          # Q&A with streaming
 ├── login/
 │   └── page.tsx           # JWT login page
@@ -118,7 +118,7 @@ All routes expect Bearer token in `Authorization` header. BYOK headers auto-inje
 | Login | `/auth/login` | POST | - |
 | Refresh | `/auth/refresh` | POST | - |
 | Profile (GET) | `/profile` | GET | - |
-| Profile (POST) | `/profile` | POST | - |
+| Profile (PUT) | `/profile` | PUT | - |
 | Validate Keys | `/settings/validate-keys` | POST | - |
 | Ingest Resume | `/ingest` | POST | X-Gemini-API-Key, X-Cohere-API-Key |
 | Generate Stream | `/generate/stream` | POST | X-Gemini-API-Key, X-Cohere-API-Key |
@@ -135,8 +135,8 @@ All routes expect Bearer token in `Authorization` header. BYOK headers auto-inje
 - [ ] Token refresh → auto-refreshes before expiry
 - [ ] Profile edit → saves and displays updated data
 - [ ] API keys validation → confirms both keys valid
-- [ ] Resume upload → chunks created, message shown
-- [ ] Generate query → streams answers in real-time, uses uploaded profile
+- [ ] Resume text ingest → chunks created, message shown
+- [ ] Generate query → streams answers in real-time, uses ingested profile
 - [ ] Error handling → 401 shows auth error, 422 shows missing setup
 - [ ] Navigation → sidebar links work, dashboard layout consistent
 
@@ -144,11 +144,10 @@ All routes expect Bearer token in `Authorization` header. BYOK headers auto-inje
 
 ## 🐛 Known Limitations
 
-1. **Drag-drop**: File upload supports click-only (not OS drag-drop yet)
-2. **File types**: Accepts .pdf, .txt, .doc, .docx; validation happens on ingest
-3. **Progress**: Resume upload shows mock progress (actual progress requires backend support)
-4. **Streaming**: Simple text concatenation; structured JSON streaming not yet implemented
-5. **Caching**: No offline support; real-time sync only
+1. **Resume source**: Ingest is text-based; file upload is no longer part of the flow.
+2. **Progress**: Resume text ingest shows a final success state only; streaming ingest progress is not implemented.
+3. **Streaming**: Simple text concatenation; structured JSON streaming not yet implemented
+4. **Caching**: No offline support; real-time sync only
 
 ---
 

@@ -11,6 +11,7 @@ import {
   syncAuthCookieFromStorage,
 } from '@/app/lib/auth';
 import { apiPost } from '@/app/lib/api';
+import { clearByokKeys } from '@/app/lib/byok';
 
 interface AuthContextType {
   user: User | null;
@@ -104,6 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     clearTokens();
+    clearByokKeys();
     setUser(null);
   }, []);
 

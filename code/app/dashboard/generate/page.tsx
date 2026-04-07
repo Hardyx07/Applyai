@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/components/ToastContainer';
 import { apiStream, APIError } from '@/app/lib/api';
+import { getByokKeys } from '@/app/lib/byok';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -33,15 +34,33 @@ export default function GeneratePage() {
       return;
     }
 
+    const storedKeys = getByokKeys();
+    if (!storedKeys.gemini_api_key || !storedKeys.cohere_api_key) {
+      addToast('Please add your API keys in the API Keys page before using Career Advisor.', 'error');
+      return;
+    }
+
     const userMessage = query;
     setQuery('');
-    setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', content: userMessage },
+      { role: 'assistant', content: '' },
+    ]);
     setIsLoading(true);
 
     try {
-      const stream = await apiStream('/generate/stream', {
-        query: userMessage,
-      });
+      const queryString = new URLSearchParams({ prompt: userMessage }).toString();
+      const stream = await apiStream(
+        `/generate/stream?${queryString}`,
+        undefined,
+        {
+          byokHeaders: {
+            'X-Gemini-API-Key': storedKeys.gemini_api_key,
+            'X-Cohere-API-Key': storedKeys.cohere_api_key,
+          },
+        }
+      );
 
       const reader = stream.getReader();
       const decoder = new TextDecoder();
@@ -73,7 +92,9 @@ export default function GeneratePage() {
     } catch (error) {
       if (error instanceof APIError) {
         if (error.statusCode === 422) {
-          addToast('Please complete your profile and upload a resume first', 'error');
+          addToast('Missing or invalid API keys. Please update keys and try again.', 'error');
+        } else if (error.statusCode === 404) {
+          addToast('No indexed profile data found. Please ingest your resume text first.', 'error');
         } else {
           addToast(error.message, 'error');
         }

@@ -1,15 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/components/ToastContainer';
 import { apiPost, APIError } from '@/app/lib/api';
+import { ValidateKeysResponse } from '@/app/lib/types';
+import { getByokKeys, setByokKeys } from '@/app/lib/byok';
 
 export default function KeysPage() {
   const [geminiKey, setGeminiKey] = useState('');
   const [cohereKey, setCohereKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
+
+  useEffect(() => {
+    const stored = getByokKeys();
+    setGeminiKey(stored.gemini_api_key);
+    setCohereKey(stored.cohere_api_key);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,17 +29,19 @@ export default function KeysPage() {
 
     setIsLoading(true);
     try {
-      const response = await apiPost('/settings/validate-keys', {
+      const response = await apiPost<ValidateKeysResponse>('/settings/validate-keys', {
         gemini_api_key: geminiKey,
         cohere_api_key: cohereKey,
       });
 
-      if (response === true || (response && typeof response === 'object' && 'valid' in response && response.valid)) {
-        addToast('API keys validated and saved successfully!', 'success');
-        setGeminiKey('');
-        setCohereKey('');
+      if (response.gemini_valid && response.cohere_valid) {
+        setByokKeys({
+          gemini_api_key: geminiKey,
+          cohere_api_key: cohereKey,
+        });
+        addToast('API keys validated and saved in this browser.', 'success');
       } else {
-        addToast('API keys are invalid. Please check and try again.', 'error');
+        addToast(response.detail || 'API keys are invalid. Please check and try again.', 'error');
       }
     } catch (error) {
       if (error instanceof APIError) {
@@ -48,7 +58,7 @@ export default function KeysPage() {
     <div>
       <div className="page-header">
         <h1>API Keys</h1>
-        <p>Manage your API keys for Gemini and Cohere. Your keys are stored securely and never exposed.</p>
+        <p>Manage your API keys for Gemini and Cohere. Keys are stored only in this browser on this device.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '640px' }}>
@@ -97,7 +107,7 @@ export default function KeysPage() {
           disabled={isLoading}
           className="btn btn--primary btn--full"
         >
-          {isLoading ? 'Validating...' : 'Validate & Save Keys'}
+          {isLoading ? 'Validating...' : 'Validate & Save in Browser'}
         </button>
       </form>
 
@@ -105,9 +115,9 @@ export default function KeysPage() {
         <div>
           <h3 style={{ marginBottom: 'var(--space-2)' }}>🔒 Security</h3>
           <ul style={{ fontSize: 'var(--text-xs)', opacity: 0.8 }}>
-            <li>• Your API keys are encrypted and stored securely</li>
+            <li>• Keys are stored in your browser storage on this device</li>
             <li>• Keys are never shared or logged</li>
-            <li>• You can update your keys at any time</li>
+            <li>• Keys are cleared when you logout</li>
             <li>• Bring Your Own Key (BYOK) - full control over your data</li>
           </ul>
         </div>

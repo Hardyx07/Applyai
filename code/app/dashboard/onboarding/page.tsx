@@ -1,18 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/components/ToastContainer';
-import { apiPost, APIError } from '@/app/lib/api';
-import { useAuth } from '@/app/hooks/useAuth';
+import { apiPost, apiPut, APIError } from '@/app/lib/api';
+import { ValidateKeysResponse } from '@/app/lib/types';
+import { getByokKeys, setByokKeys } from '@/app/lib/byok';
 
 export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toasts, addToast, removeToast } = useToast();
-  const { user } = useAuth();
 
   // Step 1: Profile Info
   const [profileData, setProfileData] = useState({
@@ -28,8 +28,16 @@ export default function OnboardingPage() {
     cohere_api_key: '',
   });
 
-  // Step 3: Resume Upload
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  // Step 3: Resume Text
+  const [resumeText, setResumeText] = useState('');
+
+  useEffect(() => {
+    const stored = getByokKeys();
+    setApiKeys({
+      gemini_api_key: stored.gemini_api_key,
+      cohere_api_key: stored.cohere_api_key,
+    });
+  }, []);
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -39,17 +47,6 @@ export default function OnboardingPage() {
   const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setApiKeys((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleResumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.type !== 'application/pdf' && !file.type.includes('text')) {
-        addToast('Please upload a PDF or text file', 'error');
-        return;
-      }
-      setResumeFile(file);
-    }
   };
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
@@ -71,16 +68,20 @@ export default function OnboardingPage() {
     setIsLoading(true);
     try {
       // Validate keys
-      const response = await apiPost('/validate-keys', {
+      const response = await apiPost<ValidateKeysResponse>('/settings/validate-keys', {
         gemini_api_key: apiKeys.gemini_api_key,
         cohere_api_key: apiKeys.cohere_api_key,
       });
 
-      if (response === true || (response && typeof response === 'object' && 'valid' in response && response.valid)) {
+      if (response.gemini_valid && response.cohere_valid) {
+        setByokKeys({
+          gemini_api_key: apiKeys.gemini_api_key,
+          cohere_api_key: apiKeys.cohere_api_key,
+        });
         addToast('API keys validated successfully', 'success');
         setStep(3);
       } else {
-        addToast('API keys are invalid', 'error');
+        addToast(response.detail || 'API keys are invalid', 'error');
       }
     } catch (error) {
       if (error instanceof APIError) {
@@ -95,32 +96,52 @@ export default function OnboardingPage() {
 
   const handleResumeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resumeFile) {
-      addToast('Please select a resume file', 'error');
+    if (!resumeText.trim()) {
+      addToast('Please paste your resume text', 'error');
       return;
     }
 
     setIsLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', resumeFile);
+      const storedKeys = getByokKeys();
+      const geminiApiKey = apiKeys.gemini_api_key || storedKeys.gemini_api_key;
+      const cohereApiKey = apiKeys.cohere_api_key || storedKeys.cohere_api_key;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ingest`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload resume');
+      if (!geminiApiKey || !cohereApiKey) {
+        addToast('Please validate your API keys before ingesting.', 'error');
+        setStep(2);
+        return;
       }
 
-      addToast('Resume uploaded successfully!', 'success');
+      await apiPut('/profile', {
+        data: {
+          ...profileData,
+          resume_text: resumeText,
+        },
+      });
+
+      await apiPost(
+        '/ingest',
+        {
+          source: 'Resume',
+          force_reingest: true,
+        },
+        {
+          byokHeaders: {
+            'X-Gemini-API-Key': geminiApiKey,
+            'X-Cohere-API-Key': cohereApiKey,
+          },
+        }
+      );
+
+      addToast('Resume text ingested successfully!', 'success');
       router.push('/dashboard');
     } catch (error) {
-      addToast('Failed to upload resume', 'error');
+      if (error instanceof APIError) {
+        addToast(error.message, 'error');
+      } else {
+        addToast('Failed to ingest resume text', 'error');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -136,7 +157,7 @@ export default function OnboardingPage() {
       <div className="onboard__step-label">
         <span className={step === 1 ? 'current' : ''}>Profile Info</span>
         <span className={step === 2 ? 'current' : ''}>API Keys</span>
-        <span className={step === 3 ? 'current' : ''}>Upload Resume</span>
+        <span className={step === 3 ? 'current' : ''}>Resume Text</span>
       </div>
       <div className="onboard__progress">
         {[1, 2, 3].map((s) => (
@@ -228,7 +249,7 @@ export default function OnboardingPage() {
         <form onSubmit={handleApiKeysSubmit} className="onboard__card">
           <h2>Step 2: API Keys</h2>
           <p>
-            Add your API keys to enable AI-powered insights. Your keys are stored securely and never shared.
+            Add your API keys to enable AI-powered insights. Keys are stored only in this browser.
           </p>
 
           <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
@@ -285,35 +306,25 @@ export default function OnboardingPage() {
       {/* Step 3: Resume */}
       {step === 3 && (
         <form onSubmit={handleResumeSubmit} className="onboard__card">
-          <h2>Step 3: Upload Resume</h2>
+          <h2>Step 3: Paste Resume Text</h2>
           <p>
-            Upload your resume to enable personalized AI insights about your career.
+            Paste your resume content so we can index it for personalized AI insights.
           </p>
 
-          <div className="ingest-trigger" style={{ border: '2px dashed var(--color-border)', borderRadius: 'var(--radius-lg)' }}>
-            <input
-              id="resume"
-              name="resume"
-              type="file"
-              accept=".pdf,.txt,.doc,.docx"
-              onChange={handleResumeChange}
-              className="sr-only"
-            />
-            <label htmlFor="resume" style={{ cursor: 'pointer', display: 'block' }}>
-              {resumeFile ? (
-                <div>
-                  <div className="ingest-trigger__icon" style={{ background: 'var(--color-success-light)', color: 'var(--color-success)', margin: '0 auto 12px' }}>✓</div>
-                  <h3 className="ingest-trigger__title">{resumeFile.name}</h3>
-                  <p className="ingest-trigger__desc" style={{ marginBottom: 0 }}>Click to change file</p>
-                </div>
-              ) : (
-                <div>
-                  <div className="ingest-trigger__icon" style={{ margin: '0 auto 12px' }}>📄</div>
-                  <h3 className="ingest-trigger__title">Click to upload resume</h3>
-                  <p className="ingest-trigger__desc" style={{ marginBottom: 0 }}>or drag and drop<br/><span style={{ fontSize: '12px' }}>PDF, TXT, DOC, or DOCX</span></p>
-                </div>
-              )}
+          <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
+            <label htmlFor="resume_text" className="form-label">
+              Resume Text *
             </label>
+            <textarea
+              id="resume_text"
+              name="resume_text"
+              value={resumeText}
+              onChange={(e) => setResumeText(e.target.value)}
+              rows={10}
+              required
+              className="form-textarea"
+              placeholder="Paste your full resume text here..."
+            />
           </div>
 
           <div className="onboard__actions">
@@ -326,10 +337,10 @@ export default function OnboardingPage() {
             </button>
             <button
               type="submit"
-              disabled={isLoading || !resumeFile}
+              disabled={isLoading || !resumeText.trim()}
               className="btn btn--primary"
             >
-              {isLoading ? 'Uploading...' : 'Complete Setup'}
+              {isLoading ? 'Ingesting...' : 'Complete Setup'}
             </button>
           </div>
         </form>

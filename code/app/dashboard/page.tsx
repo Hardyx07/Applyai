@@ -1,29 +1,64 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { apiGet, APIError } from '@/app/lib/api';
 import { useAuth } from '@/app/hooks/useAuth';
+import { ProfileResponse } from '@/app/lib/types';
 
 export default function DashboardHome() {
   const { user } = useAuth();
+  const [showGetStarted, setShowGetStarted] = useState(true);
+  const [lastIngestedAt, setLastIngestedAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadProfileState = async () => {
+      try {
+        const profile = await apiGet<ProfileResponse>('/profile');
+        if (profile.ingested_at) {
+          setShowGetStarted(false);
+          setLastIngestedAt(new Date(profile.ingested_at).toLocaleString());
+        }
+      } catch (error) {
+        if (error instanceof APIError) {
+          console.error('Failed to load profile state:', error.message);
+        }
+      }
+    };
+
+    loadProfileState();
+  }, []);
 
   return (
     <div>
       <div className="dash-home__welcome">
         <h1>Welcome back, {user?.email}!</h1>
-        <p>Let's get started with ApplyAI</p>
+        <p>Manage your profile, API keys, and AI-powered career workspace.</p>
       </div>
 
-      <div className="dash-home__grid">
-        {/* Onboarding Card */}
-        <Link href="/dashboard/onboarding" className="dash-home__card">
-          <div className="dash-home__card-icon dash-home__card-icon--blue">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-brand)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+      {!showGetStarted && lastIngestedAt && (
+        <div className="banner banner--success" style={{ marginBottom: 'var(--space-6)' }}>
+          <div>
+            <h3 style={{ marginBottom: 'var(--space-2)' }}>Onboarding complete</h3>
+            <p style={{ fontSize: 'var(--text-sm)', opacity: 0.85 }}>
+              Your resume was last ingested {lastIngestedAt}.
+            </p>
           </div>
-          <h2 className="dash-home__card-title">Get Started</h2>
-          <p className="dash-home__card-desc">
-            Complete your profile, add API keys, and upload your resume to start getting AI-powered insights.
-          </p>
-        </Link>
+        </div>
+      )}
+
+      <div className="dash-home__grid">
+        {showGetStarted && (
+          <Link href="/dashboard/onboarding" className="dash-home__card">
+            <div className="dash-home__card-icon dash-home__card-icon--blue">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-brand)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <h2 className="dash-home__card-title">Get Started</h2>
+            <p className="dash-home__card-desc">
+              Complete your profile, add API keys, and paste your resume text to start getting AI-powered insights.
+            </p>
+          </Link>
+        )}
 
         {/* Generate Card */}
         <Link href="/dashboard/generate" className="dash-home__card">

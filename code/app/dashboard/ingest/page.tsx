@@ -1,66 +1,99 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/components/ToastContainer';
-import { getAccessToken } from '@/app/lib/auth';
+import { apiGet, apiPost, apiPut, APIError } from '@/app/lib/api';
+import { IngestResponse, ProfileData, ProfileResponse } from '@/app/lib/types';
+import { getByokKeys, setByokKeys } from '@/app/lib/byok';
+
+const emptyProfile: ProfileData = {
+  name: '',
+  phone: '',
+  location: '',
+  bio: '',
+  resume_text: '',
+};
 
 export default function IngestPage() {
-  const [file, setFile] = useState<File | null>(null);
+  const [resumeText, setResumeText] = useState('');
+  const [profileData, setProfileData] = useState<ProfileData>(emptyProfile);
+  const [geminiKey, setGeminiKey] = useState('');
+  const [cohereKey, setCohereKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const { toasts, addToast, removeToast } = useToast();
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setUploadProgress(0);
-    }
-  };
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const storedKeys = getByokKeys();
+        setGeminiKey(storedKeys.gemini_api_key);
+        setCohereKey(storedKeys.cohere_api_key);
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const droppedFile = e.dataTransfer.files?.[0];
-    if (droppedFile) {
-      setFile(droppedFile);
-      setUploadProgress(0);
-    }
-  };
+        const profile = await apiGet<ProfileResponse>('/profile');
+        setProfileData({
+          ...emptyProfile,
+          ...(profile.data || {}),
+        });
+        setResumeText(String(profile.data?.resume_text || ''));
+      } catch (error) {
+        if (error instanceof APIError) {
+          addToast(error.message, 'error');
+        } else {
+          addToast('Failed to load profile data', 'error');
+        }
+      }
+    };
+
+    loadProfile();
+  }, [addToast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!file) {
-      addToast('Please select a file', 'error');
+    if (!resumeText.trim()) {
+      addToast('Please paste your resume text', 'error');
+      return;
+    }
+
+    if (!geminiKey || !cohereKey) {
+      addToast('Please provide both Gemini and Cohere API keys', 'error');
       return;
     }
 
     setIsLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      setByokKeys({ gemini_api_key: geminiKey, cohere_api_key: cohereKey });
 
-      const token = getAccessToken();
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ingest`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
+      await apiPut('/profile', {
+        data: {
+          ...profileData,
+          resume_text: resumeText,
         },
-        body: formData,
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Upload failed');
-      }
+      const result = await apiPost<IngestResponse>(
+        '/ingest',
+        {
+          source: 'Resume',
+          force_reingest: true,
+        },
+        {
+          byokHeaders: {
+            'X-Gemini-API-Key': geminiKey,
+            'X-Cohere-API-Key': cohereKey,
+          },
+        }
+      );
 
-      const result = await response.json();
-      addToast(`Resume ingested successfully! ${result.chunks_created || ''} chunks created.`, 'success');
-      setFile(null);
-      setUploadProgress(0);
+      const chunkCount = result.child_chunks ?? result.chunks_created ?? 0;
+      addToast(`Resume ingested successfully! ${chunkCount} chunks created.`, 'success');
     } catch (error) {
-      addToast(error instanceof Error ? error.message : 'Failed to upload file', 'error');
+      if (error instanceof APIError) {
+        addToast(error.message, 'error');
+      } else {
+        addToast('Failed to ingest profile data', 'error');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -69,67 +102,64 @@ export default function IngestPage() {
   return (
     <div>
       <div className="page-header">
-        <h1>Upload Resume</h1>
-        <p>Upload your resume or career documents for AI-powered analysis and personalized insights.</p>
+        <h1>Ingest Resume Data</h1>
+        <p>Paste your resume text and ingest it for AI-powered analysis and personalized insights.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="card" style={{ maxWidth: '640px' }}>
-        <div
-          onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
-          className="ingest-trigger"
-          style={{ border: '2px dashed var(--color-border)', borderRadius: 'var(--radius-lg)', cursor: 'pointer', transition: 'border-color var(--transition-base)' }}
-        >
-          <input
-            id="file"
-            name="file"
-            type="file"
-            accept=".pdf,.txt,.doc,.docx"
-            onChange={handleFileChange}
-            className="sr-only"
-          />
-          <label htmlFor="file" style={{ cursor: 'pointer', display: 'block' }}>
-            {file ? (
-              <div>
-                <div className="ingest-trigger__icon" style={{ background: 'var(--color-success-light)', color: 'var(--color-success)' }}>✓</div>
-                <h3 className="ingest-trigger__title">{file.name}</h3>
-                <p className="ingest-trigger__desc" style={{ marginBottom: 0 }}>
-                  {(file.size / 1024 / 1024).toFixed(2)} MB<br/>
-                  Click to change file
-                </p>
-              </div>
-            ) : (
-              <div>
-                <div className="ingest-trigger__icon">📄</div>
-                <h3 className="ingest-trigger__title">Click to upload or drag and drop</h3>
-                <p className="ingest-trigger__desc" style={{ marginBottom: 0 }}>
-                  PDF, TXT, DOC, or DOCX files<br/>
-                  Maximum 10 MB
-                </p>
-              </div>
-            )}
+        <div className="form-group" style={{ marginBottom: 'var(--space-6)' }}>
+          <label htmlFor="resume_text" className="form-label">
+            Resume Text
           </label>
+          <textarea
+            id="resume_text"
+            name="resume_text"
+            value={resumeText}
+            onChange={(e) => setResumeText(e.target.value)}
+            rows={10}
+            className="form-textarea"
+            placeholder="Paste your full resume text here..."
+            required
+          />
         </div>
 
-        {uploadProgress > 0 && uploadProgress < 100 && (
-          <div className="ingest-progress">
-            <div className="ingest-progress__label">Uploading... {uploadProgress}%</div>
-            <div className="ingest-progress__bar">
-              <div
-                className="ingest-progress__fill"
-                style={{ width: `${uploadProgress}%` }}
-              />
-            </div>
-          </div>
-        )}
+        <div className="form-group" style={{ marginBottom: 'var(--space-6)' }}>
+          <label htmlFor="gemini_key" className="form-label">
+            Gemini API Key
+          </label>
+          <input
+            id="gemini_key"
+            type="password"
+            value={geminiKey}
+            onChange={(e) => setGeminiKey(e.target.value)}
+            className="form-input"
+            placeholder="Enter your Gemini API key"
+            required
+          />
+        </div>
+
+        <div className="form-group" style={{ marginBottom: 'var(--space-6)' }}>
+          <label htmlFor="cohere_key" className="form-label">
+            Cohere API Key
+          </label>
+          <input
+            id="cohere_key"
+            type="password"
+            value={cohereKey}
+            onChange={(e) => setCohereKey(e.target.value)}
+            className="form-input"
+            placeholder="Enter your Cohere API key"
+            required
+          />
+        </div>
 
         <div style={{ marginTop: 'var(--space-8)' }}>
           <button
             type="submit"
-            disabled={isLoading || !file}
+            disabled={isLoading || !resumeText.trim() || !geminiKey || !cohereKey}
             className="btn btn--primary btn--full"
           >
-            {isLoading ? 'Uploading...' : 'Upload Resume'}
+            {isLoading ? 'Ingesting...' : 'Ingest Resume Text'}
           </button>
         </div>
       </form>

@@ -22,21 +22,27 @@ export interface User {
 }
 
 // Profile types
-export interface ProfileSchema {
-  user_id: string;
-  name: string;
-  email: string;
+export interface ProfileData {
+  name?: string;
   phone?: string;
   location?: string;
   bio?: string;
   resume_text?: string;
 }
 
+export interface ProfileResponse {
+  user_id: string;
+  data: ProfileData;
+  ingested_at?: string | null;
+}
+
+export type ProfileSchema = ProfileData;
+
 // Validation types
-export interface ValidationResponse {
-  valid: boolean;
-  message?: string;
-  details?: Record<string, unknown>;
+export interface ValidateKeysResponse {
+  gemini_valid: boolean;
+  cohere_valid: boolean;
+  detail: string;
 }
 
 // Generated answer types
@@ -53,6 +59,11 @@ export interface GenerateResponse {
 export interface IngestResponse {
   status: string;
   message?: string;
+  processed_sections?: string[];
+  parent_chunks?: number;
+  child_chunks?: number;
+  embedded_chunks?: number;
+  ingested_at?: string;
   chunks_created?: number;
 }
 

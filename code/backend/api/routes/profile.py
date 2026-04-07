@@ -22,9 +22,9 @@ async def get_profile(
     profile = result.scalar_one_or_none()
 
     if not profile:
-        return ProfileResponse(user_id=user_id, data={})
+        return ProfileResponse(user_id=user_id, data={}, ingested_at=None)
 
-    return ProfileResponse(user_id=user_id, data=profile.data)
+    return ProfileResponse(user_id=user_id, data=profile.data, ingested_at=profile.ingested_at)
 
 
 @router.put("", response_model=ProfileResponse)
@@ -45,7 +45,7 @@ async def upsert_profile(
         profile.ingested_at = None
 
     await db.commit()
-    return ProfileResponse(user_id=user_id, data=profile.data)
+    return ProfileResponse(user_id=user_id, data=profile.data, ingested_at=profile.ingested_at)
 
 
 def _parse_user_id(user_id: str) -> uuid.UUID:
