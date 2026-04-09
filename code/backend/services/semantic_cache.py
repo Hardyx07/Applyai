@@ -39,3 +39,19 @@ def build_cache_key(*, prompt: str, field_name: str | None) -> str:
 
 def _build_redis_key(*, user_id: str, cache_key: str) -> str:
     return f"semantic_cache:{user_id}:{cache_key}"
+
+
+async def clear_user_cache(*, user_id: str) -> None:
+    client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    pattern = f"semantic_cache:{user_id}:*"
+    try:
+        keys: list[str] = []
+        async for key in client.scan_iter(match=pattern, count=200):
+            keys.append(key)
+
+        if keys:
+            await client.delete(*keys)
+    except Exception:
+        return
+    finally:
+        await client.aclose()

@@ -12,6 +12,7 @@ from models.profile_chunk import ProfileChunk
 from schemas.ingest import IngestRequest, IngestResponse
 from services.chunking import build_profile_chunks
 from services.embeddings import embed_documents
+from services.semantic_cache import clear_user_cache
 from services.vector_indexes import replace_user_bm25_index, replace_user_vectors
 from core.config import get_settings
 
@@ -92,6 +93,7 @@ async def ingest_profile(
     ingested_at = datetime.now(timezone.utc)
     profile.ingested_at = ingested_at
     await db.commit()
+    await clear_user_cache(user_id=user_id)
 
     processed_sections = sorted({chunk.section_type for chunk in chunk_result.chunks})
 

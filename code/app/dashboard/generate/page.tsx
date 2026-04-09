@@ -11,6 +11,11 @@ interface Message {
   content: string;
 }
 
+type StreamEvent = {
+  event: string | null;
+  data: string;
+};
+
 export default function GeneratePage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [query, setQuery] = useState('');
@@ -36,7 +41,7 @@ export default function GeneratePage() {
 
     const storedKeys = getByokKeys();
     if (!storedKeys.gemini_api_key || !storedKeys.cohere_api_key) {
-      addToast('Please add your API keys in the API Keys page before using Career Advisor.', 'error');
+      addToast('Please add your API keys in the API Keys page before using chat.', 'error');
       return;
     }
 
@@ -64,26 +69,51 @@ export default function GeneratePage() {
 
       const reader = stream.getReader();
       const decoder = new TextDecoder();
+      let buffer = '';
       let fullResponse = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        fullResponse += chunk;
-        
-        // Update the last message (assistant) with the accumulated response
-        setMessages((prev) => [
-          ...prev.slice(0, -1),
-          { role: 'assistant', content: fullResponse },
-        ]);
+        buffer += decoder.decode(value, { stream: true });
+        const { events, rest } = parseSseEvents(buffer);
+        buffer = rest;
+
+        for (const event of events) {
+          if (event.event !== 'token') {
+            continue;
+          }
+
+          try {
+            const token = JSON.parse(event.data) as string;
+            fullResponse += token;
+          } catch {
+            fullResponse += event.data;
+          }
+
+          setMessages((prev) => [
+            ...prev.slice(0, -1),
+            { role: 'assistant', content: fullResponse },
+          ]);
+        }
       }
 
       // Final flush
-      const finalChunk = decoder.decode();
-      if (finalChunk) {
-        fullResponse += finalChunk;
+      buffer += decoder.decode();
+      const { events } = parseSseEvents(buffer, true);
+      for (const event of events) {
+        if (event.event !== 'token') {
+          continue;
+        }
+
+        try {
+          const token = JSON.parse(event.data) as string;
+          fullResponse += token;
+        } catch {
+          fullResponse += event.data;
+        }
+
         setMessages((prev) => [
           ...prev.slice(0, -1),
           { role: 'assistant', content: fullResponse },
@@ -112,8 +142,8 @@ export default function GeneratePage() {
     <div className="chat">
       {/* Header */}
       <div className="chat__header">
-        <h1>Career Advisor</h1>
-        <p>Ask questions about your career path and get AI-powered guidance</p>
+        <h1>ApplyAI Chatbot</h1>
+        <p>Ask a question and get a grounded answer from your profile data.</p>
       </div>
 
       {/* Messages */}
@@ -122,12 +152,12 @@ export default function GeneratePage() {
           <div className="chat__empty">
             <div>
               <div className="chat__empty-icon">💡</div>
-              <h3>Ask me anything about your career!</h3>
+              <h3>Ask a question about your application</h3>
               <div className="chat__suggestions">
-                <button className="chat__suggestion" onClick={() => setQuery("What roles should I target next?")}>What roles should I target next?</button>
-                <button className="chat__suggestion" onClick={() => setQuery("How can I improve my resume?")}>How can I improve my resume?</button>
-                <button className="chat__suggestion" onClick={() => setQuery("What skills should I develop?")}>What skills should I develop?</button>
-                <button className="chat__suggestion" onClick={() => setQuery("What salary range is appropriate?")}>What salary range is appropriate?</button>
+                <button className="chat__suggestion" onClick={() => setQuery('Write a short summary for this role.')}>Write a short summary for this role.</button>
+                <button className="chat__suggestion" onClick={() => setQuery('Help me answer this field professionally.')}>Help me answer this field professionally.</button>
+                <button className="chat__suggestion" onClick={() => setQuery('Summarize my experience in two sentences.')}>Summarize my experience in two sentences.</button>
+                <button className="chat__suggestion" onClick={() => setQuery('Draft a concise answer from my profile.')}>Draft a concise answer from my profile.</button>
               </div>
             </div>
           </div>
@@ -170,7 +200,7 @@ export default function GeneratePage() {
             disabled={isLoading || !query.trim()}
             className="btn btn--primary"
           >
-            Send
+            Ask
           </button>
         </form>
       </div>
@@ -178,4 +208,41 @@ export default function GeneratePage() {
       <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
+}
+
+function parseSseEvents(buffer: string, finalize = false): { events: StreamEvent[]; rest: string } {
+  const lines = buffer.split(/\r?\n/);
+  const events: StreamEvent[] = [];
+  let currentEvent: string | null = null;
+  let currentData: string[] = [];
+
+  const limit = finalize ? lines.length : Math.max(lines.length - 1, 0);
+  for (let index = 0; index < limit; index += 1) {
+    const line = lines[index];
+
+    if (!line) {
+      if (currentData.length > 0) {
+        events.push({ event: currentEvent, data: currentData.join('\n') });
+        currentEvent = null;
+        currentData = [];
+      }
+      continue;
+    }
+
+    if (line.startsWith('event:')) {
+      currentEvent = line.slice('event:'.length).trim();
+      continue;
+    }
+
+    if (line.startsWith('data:')) {
+      currentData.push(line.slice('data:'.length).trimStart());
+    }
+  }
+
+  if (finalize && currentData.length > 0) {
+    events.push({ event: currentEvent, data: currentData.join('\n') });
+  }
+
+  const rest = finalize ? '' : lines[lines.length - 1] ?? '';
+  return { events, rest };
 }

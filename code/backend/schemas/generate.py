@@ -12,6 +12,7 @@ class RetrievedContext(BaseModel):
 class GenerateTrace(BaseModel):
     prompt: str = Field(min_length=3, max_length=2000)
     field_name: str | None = Field(default=None, max_length=128)
+    cache_hit: bool
     used_cache: bool
     context_count: int
     context: list[RetrievedContext]

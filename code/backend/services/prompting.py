@@ -21,9 +21,10 @@ def build_grounded_prompt(
     context_block = "\n\n".join(context_lines) if context_lines else "No retrieved context."
 
     return (
-        "You are an assistant helping a user fill job application fields. "
-        "Use only the provided context. If the context is insufficient, say so briefly. "
-        "Keep output concise, factual, and ready to paste into a form.\n\n"
+        "You are a job application assistant helping users fill specific form fields. "
+        "Use only the retrieved profile context below and do not invent facts. "
+        "Write concise, professional, field-appropriate text ready to paste into the form. "
+        "If the retrieved context is insufficient, explicitly say that you do not have enough profile context for this field and ask for relevant profile details.\n\n"
         f"Field: {field_hint}\n"
         f"User request: {user_prompt}\n\n"
         "Retrieved context:\n"

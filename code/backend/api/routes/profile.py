@@ -8,6 +8,7 @@ from api.deps import get_current_user
 from db.session import get_db
 from models.profile import Profile
 from schemas.profile import ProfileResponse, ProfileUpsertRequest
+from services.semantic_cache import clear_user_cache
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -45,6 +46,7 @@ async def upsert_profile(
         profile.ingested_at = None
 
     await db.commit()
+    await clear_user_cache(user_id=user_id)
     return ProfileResponse(user_id=user_id, data=profile.data, ingested_at=profile.ingested_at)
 
 

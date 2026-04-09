@@ -230,6 +230,13 @@ def _stream_generate(
     }
 
 
+def _latest_meta_payload(events: list[tuple[str | None, Any]]) -> dict[str, Any]:
+    meta_payloads = [payload for event, payload in events if event == "meta" and isinstance(payload, dict)]
+    if not meta_payloads:
+        raise AssertionError("Stream did not emit meta event")
+    return meta_payloads[-1]
+
+
 def _run(config: VerifyConfig) -> None:
     with httpx.Client(base_url=config.base_url, timeout=config.timeout_seconds) as client:
         if not config.skip_health_check:
@@ -313,6 +320,10 @@ def _run(config: VerifyConfig) -> None:
             f"Expected text/event-stream, got {stream_result['content_type']}",
         )
         events = stream_result["events"]
+        meta_payload = _latest_meta_payload(events)
+        _assert("cache_hit" in meta_payload and isinstance(meta_payload.get("cache_hit"), bool), "meta.cache_hit missing or invalid")
+        _assert("context_count" in meta_payload and isinstance(meta_payload.get("context_count"), int), "meta.context_count missing or invalid")
+        _assert(meta_payload.get("cache_hit") is False, "Step 7 first generate call should be a cache miss")
         _assert(any(event == "token" for event, _ in events), "Stream did not emit token events")
         done_payloads = [payload for event, payload in events if event == "done"]
         _assert(done_payloads, "Stream did not emit done event")
@@ -353,6 +364,13 @@ def _run(config: VerifyConfig) -> None:
             field_name="projects",
             top_k=8,
         )
+
+        first_cache_meta = _latest_meta_payload(first_cache["events"])
+        second_cache_meta = _latest_meta_payload(second_cache["events"])
+        _assert(first_cache_meta.get("cache_hit") is False, "First cache validation call should be a cache miss")
+        _assert(second_cache_meta.get("cache_hit") is True, "Second cache validation call should be a cache hit")
+        _assert(isinstance(first_cache_meta.get("context_count"), int), "First cache meta.context_count missing")
+        _assert(isinstance(second_cache_meta.get("context_count"), int), "Second cache meta.context_count missing")
 
         _assert(first_cache["answer"] == second_cache["answer"], "Cached answer mismatch between repeated calls")
         _assert(

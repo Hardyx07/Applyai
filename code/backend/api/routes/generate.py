@@ -34,6 +34,7 @@ async def generate_stream(
             trace=GenerateTrace(
                 prompt=prompt,
                 field_name=field_name,
+                cache_hit=True,
                 used_cache=True,
                 context_count=0,
                 context=[],
@@ -62,6 +63,9 @@ async def generate_stream(
     )
 
     effective_context = reranked if reranked else retrieved
+    context_count = len(effective_context)
+    top_rerank_score = float(effective_context[0].score) if effective_context else 0.0
+
     grounded_prompt = build_grounded_prompt(
         user_prompt=prompt,
         field_name=field_name,
@@ -77,13 +81,16 @@ async def generate_stream(
     except Exception as exc:
         raise HTTPException(status_code=502, detail="Failed to generate response.") from exc
 
-    await set_cached_answer(user_id=user_id, cache_key=cache_key, answer=answer)
+    should_cache = context_count > 0 and top_rerank_score >= 0.3
+    if should_cache:
+        await set_cached_answer(user_id=user_id, cache_key=cache_key, answer=answer)
 
     trace = GenerateTrace(
         prompt=prompt,
         field_name=field_name,
+        cache_hit=False,
         used_cache=False,
-        context_count=len(effective_context),
+        context_count=context_count,
         context=[
             RetrievedContext(
                 chunk_id=item.chunk_id,
