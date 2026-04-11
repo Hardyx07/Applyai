@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "ext:dev": "pnpm --dir extension dev",
+    "ext:build": "pnpm --dir extension build",
+    "ext:package": "pnpm --dir extension package"
   },
   "dependencies": {
     "@swc/helpers": "^0.5.21",

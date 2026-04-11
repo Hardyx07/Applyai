@@ -19,6 +19,9 @@
 
 # production
 /build
+/extension/build
+/extension/.plasmo
+/extension/node_modules/
 
 # misc
 .DS_Store

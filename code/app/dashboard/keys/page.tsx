@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/components/ToastContainer';
 import { apiPost, APIError } from '@/app/lib/api';
-import { ValidateKeysResponse } from '@/app/lib/types';
+import { SaveKeysResponse } from '@/app/lib/types';
 import { getByokKeys, setByokKeys } from '@/app/lib/byok';
 
 export default function KeysPage() {
@@ -29,17 +29,17 @@ export default function KeysPage() {
 
     setIsLoading(true);
     try {
-      const response = await apiPost<ValidateKeysResponse>('/settings/validate-keys', {
+      const response = await apiPost<SaveKeysResponse>('/settings/save-keys', {
         gemini_api_key: geminiKey,
         cohere_api_key: cohereKey,
       });
 
-      if (response.gemini_valid && response.cohere_valid) {
+      if (response.saved) {
         setByokKeys({
           gemini_api_key: geminiKey,
           cohere_api_key: cohereKey,
         });
-        addToast('API keys validated and saved in this browser.', 'success');
+        addToast('API keys validated and saved to your account and browser.', 'success');
       } else {
         addToast(response.detail || 'API keys are invalid. Please check and try again.', 'error');
       }
@@ -107,7 +107,7 @@ export default function KeysPage() {
           disabled={isLoading}
           className="btn btn--primary btn--full"
         >
-          {isLoading ? 'Validating...' : 'Validate & Save in Browser'}
+          {isLoading ? 'Validating...' : 'Validate & Save to Account'}
         </button>
       </form>
 
@@ -115,7 +115,7 @@ export default function KeysPage() {
         <div>
           <h3 style={{ marginBottom: 'var(--space-2)' }}>🔒 Security</h3>
           <ul style={{ fontSize: 'var(--text-xs)', opacity: 0.8 }}>
-            <li>• Keys are stored in your browser storage on this device</li>
+            <li>• Keys are stored in your browser and encrypted in your account</li>
             <li>• Keys are never shared or logged</li>
             <li>• Keys are cleared when you logout</li>
             <li>• Bring Your Own Key (BYOK) - full control over your data</li>

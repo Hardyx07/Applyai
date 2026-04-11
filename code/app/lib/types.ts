@@ -45,6 +45,19 @@ export interface ValidateKeysResponse {
   detail: string;
 }
 
+export interface SaveKeysResponse {
+  gemini_valid: boolean;
+  cohere_valid: boolean;
+  saved: boolean;
+  detail: string;
+}
+
+export interface SavedKeysResponse {
+  gemini_api_key: string | null;
+  cohere_api_key: string | null;
+  has_saved_keys: boolean;
+}
+
 // Generated answer types
 export interface GenerateResponse {
   answer: string;

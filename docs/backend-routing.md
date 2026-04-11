@@ -3,20 +3,27 @@
 ## Purpose
 Complete end-to-end backend documentation showing the entire system flow, routes, data pipeline, and architecture. For onboarding developers and providing context before making changes.
 
+> Contract note (April 2026): Current mounted routers are `/auth`, `/settings`, `/profile`, `/ingest`, `/generate`, and `/health`.
+> `/classify/vision` is not currently mounted in the backend and is deferred for a later phase.
+
 ## User Journey (Complete Flow)
 
 ```
 1. USER REGISTRATION
    POST /auth/register → Create account, receive JWT tokens
 
-2. PROFILE SETUP
+2. KEY SETUP (ACCOUNT PERSISTENCE)
+  POST /settings/save-keys → Validate + encrypt + persist provider keys
+  GET /settings/saved-keys → Hydrate web/extension local cache after login/connect
+
+3. PROFILE SETUP
    PUT /profile → Store structured profile data (resume, skills, etc.)
 
-3. PROFILE INDEXING
+4. PROFILE INDEXING
    POST /ingest → Convert profile into searchable chunks + embeddings
    - Chunks stored in: PostgreSQL (metadata), Qdrant (vectors), SQLite (keyword index)
 
-4. QUERY & GENERATE
+5. QUERY & GENERATE
    POST /generate/stream → Get AI-powered answers grounded in profile
    - Cache lookup (Redis)
    - Retrieve relevant chunks via hybrid search
@@ -34,11 +41,11 @@ Complete end-to-end backend documentation showing the entire system flow, routes
 │                       ScopeGuardMiddleware                       │
 │          (JWT validation + BYOK header extraction)              │
 ├─────────────────────────────────────────────────────────────────┤
-│                    Five Route Groups                            │
-├──────────────┬──────────────┬──────────────┬────────────┬───────┤
-│   Auth       │   Profile    │   Ingest     │  Generate  │Health │
-│ (Public)     │ (Protected)  │ (Protected)  │(Protected) │(Public)│
-└──────────────┴──────────────┴──────────────┴────────────┴───────┘
+│                    Six Route Groups                             │
+├──────────────┬──────────────┬──────────────┬──────────────┬────────────┬───────┤
+│   Auth       │   Settings   │   Profile    │   Ingest     │  Generate  │Health │
+│ (Public)     │ (Protected)  │ (Protected)  │ (Protected)  │(Protected) │(Public)│
+└──────────────┴──────────────┴──────────────┴──────────────┴────────────┴───────┘
         ↓              ↓              ↓              ↓
 ┌──────────────────────────────────────────────────────────────────┐
 │                      Service Layer                              │
@@ -91,6 +98,24 @@ Complete end-to-end backend documentation showing the entire system flow, routes
   - Body: `gemini_api_key`, `cohere_api_key`
   - Behavior: dry-runs provider validation calls, does not persist keys
   - Success: `200` with validation booleans + detail message
+
+- `POST /settings/save-keys`
+  - Auth: Protected (access token)
+  - Body: `gemini_api_key`, `cohere_api_key`
+  - Behavior:
+    - Reuses validation path used by `/settings/validate-keys`
+    - Encrypts keys with Fernet and upserts one row per user in PostgreSQL
+  - Success: `200` with `gemini_valid`, `cohere_valid`, `saved`, `detail`
+  - Contract note: does not change `/ingest` or `/generate/stream` BYOK-header requirements
+
+- `GET /settings/saved-keys`
+  - Auth: Protected (access token)
+  - Behavior: decrypts and returns account-saved keys for client hydration
+  - Success: `200` with either:
+    - `{ has_saved_keys: true, gemini_api_key: "...", cohere_api_key: "..." }`
+    - `{ has_saved_keys: false, gemini_api_key: null, cohere_api_key: null }`
+  - Common errors:
+    - `500` stored ciphertext cannot be decrypted
 
 ### Profile (`/profile`)
 - `GET /profile`
@@ -169,6 +194,28 @@ Complete end-to-end backend documentation showing the entire system flow, routes
     - `502` retrieval/provider failure
 
 ## Data Flow & Pipeline Details
+
+### Settings Key Persistence Flow (`POST /settings/save-keys`, `GET /settings/saved-keys`)
+Persists provider keys durably while keeping runtime BYOK headers unchanged:
+
+```
+Client submits provider keys
+  ↓
+Provider key validation (Gemini + Cohere probe)
+  ↓
+Encrypt values with Fernet (ENCRYPTION_KEY)
+  ↓
+Upsert row in PostgreSQL user_api_keys (per-user unique key record)
+  ↓
+Later login/connect event:
+  GET /settings/saved-keys
+  ↓
+Decrypt + return keys to authenticated client
+  ↓
+Hydrate browser/chrome local cache for runtime header injection
+```
+
+**Important:** `/ingest` and `/generate/stream` remain header-driven. There is no DB key fallback in those routes.
 
 ### Ingest Pipeline (`POST /ingest`)
 Transforms profile data into searchable, retrievable format:
@@ -251,9 +298,24 @@ curl -X GET http://localhost:8000/auth/me \
 # Response: { "user_id": "550e8400-e29b-41d4-a716-446655440000" }
 ```
 
-### Profile & Ingest Flow
+### Settings, Profile & Ingest Flow
 ```bash
-# 3. Store profile
+# 3. Validate + persist keys in account
+curl -X POST http://localhost:8000/settings/save-keys \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gemini_api_key": "<gemini-key>",
+    "cohere_api_key": "<cohere-key>"
+  }'
+# Response: { "gemini_valid": true, "cohere_valid": true, "saved": true, "detail": "..." }
+
+# 4. Fetch saved keys for hydration
+curl -X GET http://localhost:8000/settings/saved-keys \
+  -H "Authorization: Bearer <access_token>"
+# Response: { "has_saved_keys": true, "gemini_api_key": "...", "cohere_api_key": "..." }
+
+# 5. Store profile
 curl -X PUT http://localhost:8000/profile \
   -H "Authorization: Bearer <access_token>" \
   -H "Content-Type: application/json" \
@@ -268,7 +330,7 @@ curl -X PUT http://localhost:8000/profile \
   }'
 # Response: { "user_id": "...", "data": {...}, "ingested_at": null }
 
-# 4. Index profile
+# 6. Index profile
 curl -X POST http://localhost:8000/ingest \
   -H "Authorization: Bearer <access_token>" \
   -H "X-Gemini-API-Key: <key>" \
@@ -278,7 +340,7 @@ curl -X POST http://localhost:8000/ingest \
 
 ### Generation Flow
 ```bash
-# 5. Generate answer
+# 7. Generate answer
 curl -X POST "http://localhost:8000/generate/stream?prompt=What+are+my+key+skills?" \
   -H "Authorization: Bearer <access_token>" \
   -H "X-Gemini-API-Key: <key>" \
@@ -287,7 +349,7 @@ curl -X POST "http://localhost:8000/generate/stream?prompt=What+are+my+key+skill
 
 # Response stream:
 event: meta
-data: {"prompt":"What are my key skills?","used_cache":false,"context_count":3,"context":[...]}
+data: {"prompt":"What are my key skills?","cache_hit":false,"used_cache":false,"context_count":3,"context":[...]}
 
 event: token
 data: "Based"
@@ -301,7 +363,7 @@ data: " your"
 ...
 
 event: done
-data: {"reason":"stop_sequence"}
+data: {"ok": true}
 ```
 
 ## Header Requirements Summary
@@ -310,7 +372,7 @@ data: {"reason":"stop_sequence"}
 |---|---|---|---|---|
 | `/health` | Yes | No | No | Always available |
 | `/auth/register`, `/auth/login`, `/auth/refresh` | Yes | No | No | For getting tokens |
-| `/auth/me`, `/profile`, `/settings` | No | Yes | No | Profile management |
+| `/auth/me`, `/profile`, `/settings/*` | No | Yes | No | Identity/profile/settings management |
 | `/ingest`, `/generate/stream` | No | Yes | Yes | RAG operations require API keys |
 
 Missing headers:
@@ -323,6 +385,7 @@ Missing headers:
 - **Users**: Authentication + profiles
 - **Profiles**: User data blob + ingest timestamp
 - **ProfileChunk**: Chunk metadata (source, section type, entity, text)
+- **UserAPIKey**: Encrypted account-saved provider keys (`encrypted_gemini_api_key`, `encrypted_cohere_api_key`)
 
 ### Qdrant (Vector Database)
 - **User Collections**: Per-user embeddings with tenant isolation
@@ -353,7 +416,8 @@ Redis:       Port 6379 (cache)
 ### Critical Environment Variables
 ```bash
 # .env (host)
-ALLOWED_ORIGINS='["http://localhost:3000"]'  # Single quotes required
+ALLOWED_ORIGINS=["http://localhost:3000"]   # One-line JSON array string
+ENCRYPTION_KEY=<fernet-key>                  # Required for encrypted key persistence
 GEMINI_API_KEY=<your-key>
 COHERE_API_KEY=<your-key>
 DATABASE_URL=postgresql://applyai:password@localhost:5432/applyai
@@ -362,12 +426,15 @@ REDIS_URL=redis://localhost:6379
 
 # .env.docker (inside containers)
 # Same, except:
+ALLOWED_ORIGINS=["http://localhost:3000","chrome-extension://<id>"]
 QDRANT_HOST=qdrant                    # Service name, not localhost
 REDIS_URL=redis://redis:6379          # Service name, not localhost
 DATABASE_URL=postgresql://...@postgres:5432/...  # Service name
 ```
 
-**Rule:** Inside Docker containers, use service names as hostnames.
+**Rules:**
+- Inside Docker containers, use service names as hostnames.
+- Keep `ALLOWED_ORIGINS` as a single-line JSON array string (especially in `.env.docker`).
 
 ## Implementation Files Reference
 
@@ -386,12 +453,13 @@ Quick lookup for common changes:
 
 ## Known Constraints & Gotchas
 
-1. **Shell quoting:** Use `ALLOWED_ORIGINS='[...]'` with single quotes in `.env`
-2. **Container networking:** Use service names (redis, postgres, qdrant), not localhost
-3. **Model fallback:** Gemini quota limits → tries multiple models (code already handles)
-4. **Bcrypt:** Version 4.0.1 pinned for passlib compatibility
-5. **Qdrant IDs:** Normalized to UUID before upsert
-6. **BYOK enforcement:** Ingest and generation MUST include both Gemini + Cohere keys
+1. **ALLOWED_ORIGINS format:** Use a one-line JSON array string (e.g. `["http://localhost:3000","chrome-extension://<id>"]`).
+2. **Container networking:** Use service names (redis, postgres, qdrant), not localhost.
+3. **ENCRYPTION_KEY required:** Must be a valid Fernet key; backend validation fails fast if invalid/missing.
+4. **Model fallback:** Gemini quota limits → tries multiple models (code already handles).
+5. **Bcrypt:** Version 4.0.1 pinned for passlib compatibility.
+6. **Qdrant IDs:** Normalized to UUID before upsert.
+7. **BYOK enforcement:** Ingest and generation MUST include both Gemini + Cohere keys.
 
 ## Validation & Testing
 
@@ -403,10 +471,12 @@ curl http://localhost:8000/health
 
 Full flow test sequence:
 1. Register user → receive tokens
-2. Store profile with PUT /profile
-3. Ingest profile with POST /ingest (requires BYOK keys)
-4. Generate answer with POST /generate/stream (requires BYOK keys)
-5. Verify SSE events received correctly
+2. Save provider keys with POST /settings/save-keys
+3. Confirm hydration payload with GET /settings/saved-keys
+4. Store profile with PUT /profile
+5. Ingest profile with POST /ingest (requires BYOK headers)
+6. Generate answer with POST /generate/stream (requires BYOK headers)
+7. Verify SSE events received correctly
 
 If all succeed, backend is operational.
 

@@ -7,6 +7,14 @@ const protectedPaths = ['/dashboard'];
 // Routes that should redirect to dashboard if already authenticated
 const authPaths = ['/login', '/register'];
 
+function sanitizeNextPath(path: string | null): string | null {
+  if (!path || !path.startsWith('/') || path.startsWith('//')) {
+    return null;
+  }
+
+  return path;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
@@ -18,11 +26,14 @@ export function middleware(request: NextRequest) {
   const isAuthPath = authPaths.some(path => pathname.startsWith(path));
 
   if (isProtectedPath && !hasToken) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('next', `${pathname}${request.nextUrl.search}`);
+    return NextResponse.redirect(loginUrl);
   }
   
   if (isAuthPath && hasToken) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    const nextPath = sanitizeNextPath(request.nextUrl.searchParams.get('next'));
+    return NextResponse.redirect(new URL(nextPath || '/dashboard', request.url));
   }
 
   const response = NextResponse.next();

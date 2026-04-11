@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useCallback, useEffect, useState } from 'react';
-import { LoginRequest, RegisterRequest, TokenResponse, User } from '@/app/lib/types';
+import { LoginRequest, RegisterRequest, SavedKeysResponse, TokenResponse, User } from '@/app/lib/types';
 import {
   setTokens,
   clearTokens,
@@ -10,8 +10,8 @@ import {
   isTokenExpired,
   syncAuthCookieFromStorage,
 } from '@/app/lib/auth';
-import { apiPost } from '@/app/lib/api';
-import { clearByokKeys } from '@/app/lib/byok';
+import { apiGet, apiPost } from '@/app/lib/api';
+import { clearByokKeys, setByokKeys } from '@/app/lib/byok';
 
 interface AuthContextType {
   user: User | null;
@@ -27,6 +27,22 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const hydrateSavedKeysFromAccount = useCallback(async () => {
+    try {
+      const saved = await apiGet<SavedKeysResponse>('/settings/saved-keys');
+      if (saved.has_saved_keys && saved.gemini_api_key && saved.cohere_api_key) {
+        setByokKeys({
+          gemini_api_key: saved.gemini_api_key,
+          cohere_api_key: saved.cohere_api_key,
+        });
+      } else {
+        clearByokKeys();
+      }
+    } catch (error) {
+      console.warn('Failed to hydrate account API keys:', error);
+    }
+  }, []);
 
   // Hydrate session from token subject (backend token does not include email).
   useEffect(() => {
@@ -44,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const userId = extractUserIdFromToken(token);
           if (userId) {
             setUser({ user_id: userId, email: '' });
+            await hydrateSavedKeysFromAccount();
           } else {
             clearTokens();
             setUser(null);
@@ -57,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initAuth();
-  }, []);
+  }, [hydrateSavedKeysFromAccount]);
 
   const login = useCallback(async (email: string, password: string) => {
     try {
@@ -69,13 +86,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userId = extractUserIdFromToken(data.access_token);
       if (userId) {
         setUser({ user_id: userId, email });
+        await hydrateSavedKeysFromAccount();
       }
     } catch (error) {
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [hydrateSavedKeysFromAccount]);
 
   const register = useCallback(async (fullName: string, email: string, password: string) => {
     try {
@@ -95,13 +113,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userId = extractUserIdFromToken(data.access_token);
       if (userId) {
         setUser({ user_id: userId, email });
+        await hydrateSavedKeysFromAccount();
       }
     } catch (error) {
       throw error;
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [hydrateSavedKeysFromAccount]);
 
   const logout = useCallback(() => {
     clearTokens();

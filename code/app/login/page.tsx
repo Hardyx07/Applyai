@@ -8,19 +8,33 @@ import { useToast } from '@/app/hooks/useToast';
 import { ToastContainer } from '@/app/components/ToastContainer';
 import { APIError } from '@/app/lib/api';
 
+function sanitizeNextPath(path: string | null): string {
+  if (!path || !path.startsWith('/') || path.startsWith('//')) {
+    return '/dashboard';
+  }
+
+  return path;
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [nextPath, setNextPath] = useState('/dashboard');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { login, isAuthenticated } = useAuth();
   const { toasts, addToast, removeToast } = useToast();
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setNextPath(sanitizeNextPath(params.get('next')));
+  }, []);
+
+  useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/dashboard');
+      router.replace(nextPath);
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, nextPath, router]);
 
   if (isAuthenticated) {
     return null;
@@ -33,7 +47,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
       addToast('Login successful!', 'success');
-      router.push('/dashboard');
+      router.push(nextPath);
     } catch (error) {
       if (error instanceof APIError) {
         addToast(error.message, 'error');
@@ -112,7 +126,7 @@ export default function LoginPage() {
 
         <p className="auth-footer">
           Don&apos;t have an account?{' '}
-          <Link href="/register">
+          <Link href={nextPath === '/dashboard' ? '/register' : `/register?next=${encodeURIComponent(nextPath)}`}>
             Register
           </Link>
         </p>

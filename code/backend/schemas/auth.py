@@ -31,3 +31,21 @@ class ValidateKeysResponse(BaseModel):
     gemini_valid: bool
     cohere_valid: bool
     detail: str
+
+
+class SaveKeysRequest(BaseModel):
+    gemini_api_key: str = Field(min_length=10)
+    cohere_api_key: str = Field(min_length=10)
+
+
+class SaveKeysResponse(BaseModel):
+    gemini_valid: bool
+    cohere_valid: bool
+    saved: bool
+    detail: str
+
+
+class SavedKeysResponse(BaseModel):
+    gemini_api_key: str | None = None
+    cohere_api_key: str | None = None
+    has_saved_keys: bool

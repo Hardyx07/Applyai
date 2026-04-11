@@ -1,5 +1,6 @@
 import json
 
+from cryptography.fernet import Fernet
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
@@ -11,6 +12,7 @@ class Settings(BaseSettings):
     # App
     APP_ENV: str = "development"
     SECRET_KEY: str
+    ENCRYPTION_KEY: str
 
     # JWT
     ALGORITHM: str = "HS256"
@@ -61,6 +63,16 @@ class Settings(BaseSettings):
                 origins.append(origin)
 
         return origins
+
+    @field_validator("ENCRYPTION_KEY")
+    @classmethod
+    def _validate_encryption_key(cls, value: str) -> str:
+        try:
+            Fernet(value.encode())
+        except Exception as exc:
+            raise ValueError("ENCRYPTION_KEY must be a valid Fernet key.") from exc
+
+        return value
 
 
 @lru_cache

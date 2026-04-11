@@ -9,6 +9,7 @@ from api.routes import auth, settings, profile, ingest, generate
 from db.session import engine
 from models.user import Base
 from models import profile_chunk  # noqa: F401
+from models import user_api_key  # noqa: F401
 
 cfg = get_settings()
 

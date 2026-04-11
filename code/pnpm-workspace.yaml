@@ -1,3 +1,7 @@
+packages:
+  - .
+  - extension
+
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
