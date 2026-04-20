@@ -35,7 +35,9 @@
       "https://*.lever.co/*",
       "https://*.workday.com/*",
       "https://*.ashbyhq.com/*",
-      "https://*.smartrecruiters.com/*"
+      "https://*.smartrecruiters.com/*",
+      "https://workatastartup.com/*",
+      "https://*.workatastartup.com/*"
     ],
     "externally_connectable": {
       "matches": [

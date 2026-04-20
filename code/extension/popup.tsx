@@ -2,6 +2,10 @@ import { useEffect, useState } from "react"
 
 import { ExtensionAPIError, extensionApiJson } from "~lib/api"
 import {
+  GENERATE_ACTIVE_FIELD_MESSAGE,
+  type GenerateActiveFieldResponse
+} from "~lib/messages"
+import {
   clearByokKeys,
   getByokKeys,
   getSession,
@@ -48,12 +52,70 @@ type ProfileResponse = {
   ingested_at: string | null
 }
 
+const GENERATION_START_RETRY_DELAY_MS = 160
+
 function prettyIngestStatus(profile: ProfileState | null): string {
   if (!profile) {
     return "Unknown"
   }
 
   return profile.ingestedAt ? "Ready" : "Needs ingest"
+}
+
+async function requestGenerationStart(): Promise<GenerateActiveFieldResponse> {
+  const message = { type: GENERATE_ACTIVE_FIELD_MESSAGE }
+
+  try {
+    return (await chrome.runtime.sendMessage(message)) as GenerateActiveFieldResponse
+  } catch (error) {
+    if (!shouldRetryWorkerMessage(error)) {
+      throw error
+    }
+
+    await waitForMs(GENERATION_START_RETRY_DELAY_MS)
+    return (await chrome.runtime.sendMessage(message)) as GenerateActiveFieldResponse
+  }
+}
+
+function shouldRetryWorkerMessage(error: unknown): boolean {
+  const detail = toErrorMessage(error).toLowerCase()
+  return (
+    detail.includes("receiving end does not exist") ||
+    detail.includes("could not establish connection") ||
+    detail.includes("message port closed")
+  )
+}
+
+function mapWorkerMessageError(error: unknown): string {
+  const detail = toErrorMessage(error).toLowerCase()
+
+  if (detail.includes("extension context invalidated")) {
+    return "Extension updated. Refresh the page and reopen popup."
+  }
+
+  if (detail.includes("receiving end does not exist") || detail.includes("could not establish connection")) {
+    return "Background worker is not ready. Reload extension and try again."
+  }
+
+  if (detail.includes("message port closed")) {
+    return "Background worker restarted. Try again once."
+  }
+
+  return "Failed to contact the extension background worker."
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return String(error)
+}
+
+function waitForMs(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
 }
 
 function App() {
@@ -64,6 +126,7 @@ function App() {
   })
   const [keyInputs, setKeyInputs] = useState<KeyInputs>({ geminiApiKey: "", cohereApiKey: "" })
   const [isSavingKeys, setIsSavingKeys] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
   const [isRefreshingStatus, setIsRefreshingStatus] = useState(false)
   const [message, setMessage] = useState<PopupMessage | null>(null)
 
@@ -231,6 +294,46 @@ function App() {
     await chrome.runtime.sendMessage({ type: "applyai.connect.start" })
   }
 
+  const handleGenerateForActiveField = async () => {
+    if (!state.session) {
+      setMessage({ kind: "error", text: "Connect your account before generating." })
+      return
+    }
+
+    if (!state.hasKeys) {
+      setMessage({ kind: "error", text: "Add provider keys before generating." })
+      return
+    }
+
+    if (!state.profile?.ingestedAt) {
+      setMessage({ kind: "error", text: "Profile ingest is required before generation." })
+      return
+    }
+
+    setIsGenerating(true)
+    setMessage(null)
+
+    try {
+      const response = await requestGenerationStart()
+
+      if (!response?.ok) {
+        setMessage({
+          kind: "error",
+          text: response?.error || "Could not start generation for the active field."
+        })
+        return
+      }
+
+      setMessage({ kind: "info", text: "Generating for active field. Keep the target field focused." })
+    } catch (error) {
+      const detail = toErrorMessage(error)
+      console.warn("[ApplyAI] popup worker message failed:", detail)
+      setMessage({ kind: "error", text: mapWorkerMessageError(error) })
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
   const openWebDashboard = async () => {
     await chrome.tabs.create({ url: `${WEB_APP_BASE_URL}/dashboard` })
   }
@@ -339,6 +442,34 @@ function App() {
             Clear
           </button>
         </div>
+      </section>
+
+      <section style={{ border: "1px solid #e5e7eb", borderRadius: 8, padding: 10, marginBottom: 10 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Generation</div>
+        <p style={{ margin: "0 0 8px", fontSize: 11, color: "#4b5563" }}>
+          Focus a text field in the job form, then generate directly into that active field.
+        </p>
+        <button
+          type="button"
+          onClick={handleGenerateForActiveField}
+          disabled={isGenerating || !state.session || !state.hasKeys || !state.profile?.ingestedAt}
+          style={{
+            width: "100%",
+            background: "#0f172a",
+            color: "#ffffff",
+            border: "none",
+            borderRadius: 6,
+            padding: "8px 10px",
+            cursor:
+              isGenerating || !state.session || !state.hasKeys || !state.profile?.ingestedAt
+                ? "not-allowed"
+                : "pointer",
+            opacity: isGenerating || !state.session || !state.hasKeys || !state.profile?.ingestedAt ? 0.65 : 1,
+            fontSize: 12
+          }}
+        >
+          {isGenerating ? "Starting..." : "Generate for Active Field"}
+        </button>
       </section>
 
       {message && (

@@ -12,6 +12,7 @@ type RequestOptions = {
   method?: string
   body?: unknown
   byok?: ByokKeys | null
+  signal?: AbortSignal
 }
 
 export async function extensionApiCall(path: string, options: RequestOptions = {}): Promise<Response> {
@@ -43,6 +44,15 @@ export async function extensionApiJson<T>(path: string, options: RequestOptions 
   return response.json() as Promise<T>
 }
 
+export async function extensionApiStream(path: string, options: RequestOptions = {}): Promise<Response> {
+  const response = await extensionApiCall(path, options)
+  if (!response.ok) {
+    throw await mapError(response)
+  }
+
+  return response
+}
+
 async function doFetch(path: string, accessToken: string, options: RequestOptions): Promise<Response> {
   const headers: HeadersInit = {
     Authorization: `Bearer ${accessToken}`,
@@ -59,7 +69,8 @@ async function doFetch(path: string, accessToken: string, options: RequestOption
   return fetch(`${API_BASE_URL}${path}`, {
     method: options.method || "GET",
     headers,
-    body: options.body ? JSON.stringify(options.body) : undefined
+    body: options.body ? JSON.stringify(options.body) : undefined,
+    signal: options.signal
   })
 }
 

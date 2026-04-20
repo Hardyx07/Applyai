@@ -9,7 +9,8 @@
     "lint": "eslint",
     "ext:dev": "pnpm --dir extension dev",
     "ext:build": "pnpm --dir extension build",
-    "ext:package": "pnpm --dir extension package"
+    "ext:package": "pnpm --dir extension package",
+    "test:ext-smoke": "node scripts/playwright-extension-smoke.mjs"
   },
   "dependencies": {
     "@swc/helpers": "^0.5.21",
@@ -18,6 +19,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
