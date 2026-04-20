@@ -61,6 +61,10 @@ export async function setStoredProfileState(profile: ProfileState): Promise<void
   await chrome.storage.local.set({ [STORAGE_KEYS.PROFILE]: profile })
 }
 
+export async function clearStoredProfileState(): Promise<void> {
+  await chrome.storage.local.remove(STORAGE_KEYS.PROFILE)
+}
+
 export async function getPendingNonce(): Promise<string | null> {
   const data = await chrome.storage.local.get(STORAGE_KEYS.CONNECT_NONCE)
   return ((data as StoreShape)[STORAGE_KEYS.CONNECT_NONCE] as string | undefined) ?? null

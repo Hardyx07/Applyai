@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react"
 
-import { ExtensionAPIError, extensionApiJson } from "~lib/api"
+import { ExtensionAPIError, extensionApiJson, validateSession } from "~lib/api"
 import {
   GENERATE_ACTIVE_FIELD_MESSAGE,
   type GenerateActiveFieldResponse
 } from "~lib/messages"
 import {
+  clearStoredProfileState,
   clearByokKeys,
   getByokKeys,
   getSession,
@@ -21,6 +22,7 @@ type PopupState = {
   session: SessionTokens | null
   profile: ProfileState | null
   hasKeys: boolean
+  authStatus: "checking" | "connected" | "warning" | "disconnected"
 }
 
 type KeyInputs = {
@@ -122,13 +124,28 @@ function App() {
   const [state, setState] = useState<PopupState>({
     session: null,
     profile: null,
-    hasKeys: false
+    hasKeys: false,
+    authStatus: "checking"
   })
   const [keyInputs, setKeyInputs] = useState<KeyInputs>({ geminiApiKey: "", cohereApiKey: "" })
   const [isSavingKeys, setIsSavingKeys] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isRefreshingStatus, setIsRefreshingStatus] = useState(false)
   const [message, setMessage] = useState<PopupMessage | null>(null)
+
+  const invalidateSession = async (text: string) => {
+    await Promise.all([clearByokKeys(), clearStoredProfileState()])
+    setState({
+      session: null,
+      profile: null,
+      hasKeys: false,
+      authStatus: "disconnected"
+    })
+    setMessage({ kind: "error", text })
+  }
+
+  const isAuthenticated =
+    Boolean(state.session) && (state.authStatus === "connected" || state.authStatus === "warning")
 
   const syncProfileState = async (silent = false, sessionOverride: SessionTokens | null = null): Promise<void> => {
     const activeSession = sessionOverride || state.session
@@ -151,8 +168,7 @@ function App() {
       }
     } catch (error) {
       if (error instanceof ExtensionAPIError && error.status === 401) {
-        setState((current) => ({ ...current, session: null }))
-        setMessage({ kind: "error", text: "Session expired. Reconnect your account." })
+        await invalidateSession("Session expired. Reconnect your account.")
       } else if (!silent) {
         setMessage({ kind: "error", text: "Unable to refresh profile status right now." })
       }
@@ -192,8 +208,7 @@ function App() {
       }
     } catch (error) {
       if (error instanceof ExtensionAPIError && error.status === 401) {
-        setState((current) => ({ ...current, session: null }))
-        setMessage({ kind: "error", text: "Session expired. Reconnect your account." })
+        await invalidateSession("Session expired. Reconnect your account.")
       } else if (!silent) {
         setMessage({ kind: "error", text: "Unable to sync account keys right now." })
       }
@@ -214,16 +229,52 @@ function App() {
         return
       }
 
+      if (!session) {
+        setState({
+          session: null,
+          profile: null,
+          hasKeys: false,
+          authStatus: "disconnected"
+        })
+        return
+      }
+
+      setState({
+        session,
+        profile: null,
+        hasKeys: false,
+        authStatus: "checking"
+      })
+
+      const validation = await validateSession(true)
+      if (!mounted) {
+        return
+      }
+
+      if (validation.valid) {
+        setState({
+          session,
+          profile,
+          hasKeys: Boolean(keys?.geminiApiKey && keys?.cohereApiKey),
+          authStatus: "connected"
+        })
+        void syncProfileState(true, session)
+        void syncSavedKeysFromAccount(true, session)
+        return
+      }
+
+      if (validation.reason === "unauthorized") {
+        await invalidateSession("Session expired. Reconnect your account.")
+        return
+      }
+
       setState({
         session,
         profile,
-        hasKeys: Boolean(keys?.geminiApiKey && keys?.cohereApiKey)
+        hasKeys: Boolean(keys?.geminiApiKey && keys?.cohereApiKey),
+        authStatus: "warning"
       })
-
-      if (session) {
-        void syncProfileState(true, session)
-        void syncSavedKeysFromAccount(true, session)
-      }
+      setMessage({ kind: "info", text: "Could not validate session right now. Retrying on next action." })
     })()
 
     return () => {
@@ -236,7 +287,7 @@ function App() {
   }
 
   const handleSaveKeys = async () => {
-    if (!state.session) {
+    if (!isAuthenticated) {
       setMessage({ kind: "error", text: "Connect your account before saving keys." })
       return
     }
@@ -273,8 +324,7 @@ function App() {
       setMessage({ kind: "success", text: "Keys validated and saved to your account." })
     } catch (error) {
       if (error instanceof ExtensionAPIError && error.status === 401) {
-        setState((current) => ({ ...current, session: null }))
-        setMessage({ kind: "error", text: "Session expired. Reconnect your account." })
+        await invalidateSession("Session expired. Reconnect your account.")
       } else {
         setMessage({ kind: "error", text: "Failed to validate keys." })
       }
@@ -295,7 +345,7 @@ function App() {
   }
 
   const handleGenerateForActiveField = async () => {
-    if (!state.session) {
+    if (!isAuthenticated) {
       setMessage({ kind: "error", text: "Connect your account before generating." })
       return
     }
@@ -339,9 +389,35 @@ function App() {
   }
 
   const refreshStatus = async () => {
+    if (!state.session) {
+      setMessage({ kind: "error", text: "Connect your account before refreshing status." })
+      return
+    }
+
+    const validation = await validateSession(true)
+    if (!validation.valid) {
+      if (validation.reason === "unauthorized") {
+        await invalidateSession("Session expired. Reconnect your account.")
+      } else {
+        setState((current) => ({ ...current, authStatus: "warning" }))
+        setMessage({ kind: "info", text: "Could not validate session right now. Try again shortly." })
+      }
+      return
+    }
+
+    setState((current) => ({ ...current, authStatus: "connected" }))
     await syncProfileState()
     await syncSavedKeysFromAccount(true)
   }
+
+  const authStatusLabel =
+    state.authStatus === "checking"
+      ? "Validating..."
+      : state.authStatus === "connected"
+        ? "Connected"
+        : state.authStatus === "warning"
+          ? "Connected (validation delayed)"
+          : "Not connected"
 
   const messageColor =
     message?.kind === "success"
@@ -365,7 +441,7 @@ function App() {
       </p>
 
       <section style={{ border: "1px solid #e5e7eb", borderRadius: 8, padding: 10, marginBottom: 10 }}>
-        <div style={{ fontSize: 12, marginBottom: 6 }}>Auth: {state.session ? "Connected" : "Not connected"}</div>
+        <div style={{ fontSize: 12, marginBottom: 6 }}>Auth: {authStatusLabel}</div>
         <div style={{ fontSize: 12, marginBottom: 6 }}>BYOK keys: {state.hasKeys ? "Present" : "Missing"}</div>
         <div style={{ fontSize: 12 }}>Profile ingest: {prettyIngestStatus(state.profile)}</div>
       </section>
@@ -409,7 +485,7 @@ function App() {
           <button
             type="button"
             onClick={handleSaveKeys}
-            disabled={isSavingKeys || !state.session}
+            disabled={isSavingKeys || !isAuthenticated}
             style={{
               flex: 1,
               background: "#0f172a",
@@ -417,8 +493,8 @@ function App() {
               border: "none",
               borderRadius: 6,
               padding: "8px 10px",
-              cursor: isSavingKeys || !state.session ? "not-allowed" : "pointer",
-              opacity: isSavingKeys || !state.session ? 0.65 : 1,
+              cursor: isSavingKeys || !isAuthenticated ? "not-allowed" : "pointer",
+              opacity: isSavingKeys || !isAuthenticated ? 0.65 : 1,
               fontSize: 12
             }}
           >
@@ -452,7 +528,7 @@ function App() {
         <button
           type="button"
           onClick={handleGenerateForActiveField}
-          disabled={isGenerating || !state.session || !state.hasKeys || !state.profile?.ingestedAt}
+          disabled={isGenerating || !isAuthenticated || !state.hasKeys || !state.profile?.ingestedAt}
           style={{
             width: "100%",
             background: "#0f172a",
@@ -461,10 +537,10 @@ function App() {
             borderRadius: 6,
             padding: "8px 10px",
             cursor:
-              isGenerating || !state.session || !state.hasKeys || !state.profile?.ingestedAt
+              isGenerating || !isAuthenticated || !state.hasKeys || !state.profile?.ingestedAt
                 ? "not-allowed"
                 : "pointer",
-            opacity: isGenerating || !state.session || !state.hasKeys || !state.profile?.ingestedAt ? 0.65 : 1,
+            opacity: isGenerating || !isAuthenticated || !state.hasKeys || !state.profile?.ingestedAt ? 0.65 : 1,
             fontSize: 12
           }}
         >
@@ -522,7 +598,7 @@ function App() {
           <button
             type="button"
             onClick={refreshStatus}
-            disabled={isRefreshingStatus || !state.session}
+            disabled={isRefreshingStatus || !isAuthenticated}
             style={{
               flex: 1,
               background: "#f8fafc",
@@ -530,8 +606,8 @@ function App() {
               border: "1px solid #cbd5e1",
               borderRadius: 6,
               padding: "8px 10px",
-              cursor: isRefreshingStatus || !state.session ? "not-allowed" : "pointer",
-              opacity: isRefreshingStatus || !state.session ? 0.65 : 1
+              cursor: isRefreshingStatus || !isAuthenticated ? "not-allowed" : "pointer",
+              opacity: isRefreshingStatus || !isAuthenticated ? 0.65 : 1
             }}
           >
             {isRefreshingStatus ? "Refreshing..." : "Refresh Status"}

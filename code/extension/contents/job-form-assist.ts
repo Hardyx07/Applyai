@@ -19,6 +19,17 @@ import {
 export const config: PlasmoCSConfig = {
   matches: [
     "https://*.linkedin.com/*",
+    "https://unstop.com/*",
+    "https://internshala.com/*",
+    "https://*.internshala.com/*",
+    "https://www.naukri.com/*",
+    "https://*.naukri.com/*",
+    "https://www.foundit.in/*",        
+    "https://*.shine.com/*",
+    "https://*.hirist.tech/*",         
+    "https://*.cutshort.io/*",         
+    "https://*.instahyre.com/*",       
+    "https://wellfound.com/*",         
     "https://*.greenhouse.io/*",
     "https://*.lever.co/*",
     "https://*.workday.com/*",

@@ -15,6 +15,10 @@ type RequestOptions = {
   signal?: AbortSignal
 }
 
+export type SessionValidationResult =
+  | { valid: true }
+  | { valid: false; reason: "unauthorized" | "unreachable" }
+
 export async function extensionApiCall(path: string, options: RequestOptions = {}): Promise<Response> {
   const session = await getSession()
   if (!session?.accessToken) {
@@ -51,6 +55,42 @@ export async function extensionApiStream(path: string, options: RequestOptions =
   }
 
   return response
+}
+
+export async function validateSession(retryOnceOnNetworkError = false): Promise<SessionValidationResult> {
+  const validateOnce = async (): Promise<SessionValidationResult> => {
+    try {
+      const response = await extensionApiCall("/auth/me")
+      if (response.ok) {
+        return { valid: true }
+      }
+
+      if (response.status === 401) {
+        await clearSession()
+        return { valid: false, reason: "unauthorized" }
+      }
+
+      return { valid: false, reason: "unreachable" }
+    } catch (error) {
+      if (error instanceof ExtensionAPIError && error.status === 401) {
+        await clearSession()
+        return { valid: false, reason: "unauthorized" }
+      }
+
+      return { valid: false, reason: "unreachable" }
+    }
+  }
+
+  const firstResult = await validateOnce()
+  if (firstResult.valid || firstResult.reason !== "unreachable" || !retryOnceOnNetworkError) {
+    return firstResult
+  }
+
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, 250)
+  })
+
+  return validateOnce()
 }
 
 async function doFetch(path: string, accessToken: string, options: RequestOptions): Promise<Response> {
